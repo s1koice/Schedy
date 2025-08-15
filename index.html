@@ -1,26 +1,18 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
   <meta charset="utf-8" />
   <title>סידור עבודה – ראשי</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6;
-      --accent:#1a73e8;
-    }
+    :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
     header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px}
     header h1{font-size:20px;margin:0}
-    header nav a{color:var(--accent);text-decoration:none}
+    header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
-    .grid{
-      display:flex; gap:16px; padding:20px; overflow-x:auto; -webkit-overflow-scrolling:touch;
-    }
-    .day-card{
-      flex:0 0 320px; background:var(--card); border-radius:12px; padding:14px;
-      box-shadow:0 4px 16px rgba(0,0,0,.06); border:1px solid var(--line)
-    }
+    .grid{display:flex;gap:16px;padding:20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
     .day-head .dow{font-weight:700}
     .day-head .date{color:var(--muted);font-size:14px}
@@ -30,136 +22,150 @@
     li{padding:2px 0}
     .empty{color:var(--muted);font-style:italic}
     footer{padding:10px 20px 20px;color:var(--muted);font-size:12px}
+    /* direction tweaks */
+    [dir="rtl"] ol{padding-inline-start:22px}
   </style>
 </head>
 <body>
   <header>
-    <h1>סידור עבודה</h1>
-    <nav><a href="settings.html">הגדרות</a></nav>
+    <h1 id="t_title">סידור עבודה</h1>
+    <nav>
+      <a id="t_settings" href="settings.html">הגדרות</a>
+      <a href="#" id="langToggle" title="Language">עברית</a>
+    </nav>
   </header>
   <div class="bar"></div>
 
-  <main class="grid" id="daysGrid">
-    <!-- כרטיסי ימים נוצרים דינמית -->
-  </main>
-
-  <footer>טיפ: העדכונים נעשים בדף <strong>הגדרות</strong> ושמורים בדפדפן (localStorage).</footer>
+  <main class="grid" id="daysGrid"></main>
+  <footer id="t_tip">העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).</footer>
 
   <script>
-    // שמות ימים קבועים לשבוע ישראלי (מתחיל בראשון)
-    const WEEKDAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+    // i18n
+    const I18N = {
+      he: {
+        _dir: 'rtl',
+        title: 'סידור עבודה',
+        settings: 'הגדרות',
+        tip: 'העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).',
+        morning: 'בוקר',
+        evening: 'ערב',
+        weekdaysFull: ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
+        langToggle: 'עברית',
+        formatDate: (iso)=> new Date(iso).toLocaleDateString('he-IL'),
+      },
+      ru: {
+        _dir: 'ltr',
+        title: 'График смен',
+        settings: 'Настройки',
+        tip: 'Обновления делаются на странице настроек и сохраняются в браузере (localStorage).',
+        morning: 'Утро',
+        evening: 'Вечер',
+        weekdaysFull: ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
+        langToggle: 'Русский',
+        formatDate: (iso)=> new Date(iso).toLocaleDateString('ru-RU'),
+      }
+    };
+    function getLang(){ return localStorage.getItem('lang') || 'he'; }
+    function setLang(l){ localStorage.setItem('lang', l); applyLang(); render(); }
 
+    function applyLang(){
+      const L = I18N[getLang()];
+      document.documentElement.lang = getLang();
+      document.documentElement.dir = L._dir;
+      document.getElementById('t_title').textContent = L.title;
+      document.getElementById('t_settings').textContent = L.settings;
+      document.getElementById('t_tip').textContent = L.tip;
+      document.getElementById('langToggle').textContent = L.langToggle === 'עברית' ? 'Русский' : 'עברית';
+    }
+
+    // data
+    function parseAnyDate(s){
+      // accepts ISO YYYY-MM-DD or DD.MM.YYYY
+      if(!s) return null;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      if(m){
+        const [_,d,mo,y] = m;
+        return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      }
+      const t = Date.parse(s); // fallback
+      if(!isNaN(t)){
+        const dt = new Date(t);
+        return dt.toISOString().slice(0,10);
+      }
+      return null;
+    }
     function loadData(){
-      const rawEmployees = localStorage.getItem('employees');
-      const rawDates = localStorage.getItem('weekDates');
-      let employees = [];
-      let weekDates = [];
-
-      try{ employees = rawEmployees ? JSON.parse(rawEmployees) : []; }catch(e){ employees=[]; }
-      try{ weekDates = rawDates ? JSON.parse(rawDates) : []; }catch(e){ weekDates=[]; }
-
-      // אם אין תאריכים – נייצר לשבוע הקרוב בפורמט dd.mm.yyyy
-      if(!Array.isArray(weekDates) || weekDates.length!==7){
+      let employees=[], weekDates=[];
+      try{ employees = JSON.parse(localStorage.getItem('employees')||'[]')||[] }catch(e){}
+      try{ weekDates = JSON.parse(localStorage.getItem('weekDates')||'[]')||[] }catch(e){}
+      // normalize to ISO
+      if(weekDates.length===7){
+        weekDates = weekDates.map(d=>parseAnyDate(d)||d);
+      }
+      // if missing, build upcoming Sunday..Saturday
+      if(weekDates.length!==7 || weekDates.some(x=>!x)){
         const now = new Date();
-        // מיישרים ליום ראשון של השבוע הנוכחי
-        const day = now.getDay(); // 0=Sunday? בדפדפן: 0=Sunday, 6=Saturday
-        const delta = (day+7-0)%7;  // כמה ימים אחורה להגיע לראשון
+        const delta = (now.getDay()+7-0)%7; // to Sunday
         const sunday = new Date(now); sunday.setDate(now.getDate()-delta);
-        weekDates = Array.from({length:7}, (_,i)=>{
-          const d = new Date(sunday); d.setDate(sunday.getDate()+i);
-          return d.toLocaleDateString('he-IL'); // למשל 15.8.2025
-        });
+        weekDates = Array.from({length:7},(_,i)=>{ const d=new Date(sunday); d.setDate(sunday.getDate()+i); return d.toISOString().slice(0,10); });
         localStorage.setItem('weekDates', JSON.stringify(weekDates));
       }
-
       return {employees, weekDates};
     }
 
     function buildSchedule(employees){
-      // בונים מבנה { dayIndex: { morning:[{name,time}], evening:[...] } }
       const sched = Array.from({length:7}, ()=>({morning:[], evening:[]}));
       for(const emp of employees){
-        const name = (emp.name||"").trim();
-        const shifts = emp.shifts || {};
+        const name=(emp.name||'').trim(), shifts=emp.shifts||{};
         for(let i=0;i<7;i++){
-          const d = shifts["d"+i] || {};
-          if(d.m) sched[i].morning.push({name, time: d.timeM || ""});
-          if(d.e) sched[i].evening.push({name, time: d.timeE || ""});
+          const d=shifts['d'+i]||{};
+          if(d.m) sched[i].morning.push({name, time: d.timeM||''});
+          if(d.e) sched[i].evening.push({name, time: d.timeE||''});
         }
       }
-      // מיון אלפביתי בעברית
+      const lang=getLang();
       for(const day of sched){
-        day.morning.sort((a,b)=>a.name.localeCompare(b.name,'he'));
-        day.evening.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+        day.morning.sort((a,b)=>a.name.localeCompare(b.name, lang==='he'?'he':'ru'));
+        day.evening.sort((a,b)=>a.name.localeCompare(b.name, lang==='he'?'he':'ru'));
       }
       return sched;
     }
 
     function render(){
+      const L=I18N[getLang()];
       const {employees, weekDates} = loadData();
       const schedule = buildSchedule(employees);
-      const grid = document.getElementById('daysGrid');
-      grid.innerHTML = "";
+      const grid = document.getElementById('daysGrid'); grid.innerHTML='';
 
       for(let i=0;i<7;i++){
-        const card = document.createElement('section');
-        card.className = "day-card";
+        const card=document.createElement('section'); card.className='day-card';
+        const head=document.createElement('div'); head.className='day-head';
+        const dow=document.createElement('div'); dow.className='dow'; dow.textContent=L.weekdaysFull[i];
+        const date=document.createElement('div'); date.className='date'; date.textContent=L.formatDate(weekDates[i]);
+        head.appendChild(dow); head.appendChild(date);
 
-        const head = document.createElement('div');
-        head.className = "day-head";
-        const dow = document.createElement('div');
-        dow.className = "dow";
-        dow.textContent = WEEKDAYS[i];
-        const date = document.createElement('div');
-        date.className = "date";
-        date.textContent = weekDates[i] || "";
-        head.appendChild(dow);
-        head.appendChild(date);
+        const secM=document.createElement('div'); secM.className='section'; secM.innerHTML=`<h3>${L.morning}</h3>`;
+        const listM=schedule[i].morning;
+        if(listM.length){ const ol=document.createElement('ol'); listM.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secM.appendChild(ol); }
+        else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
 
-        const secMorning = document.createElement('div');
-        secMorning.className = "section";
-        secMorning.innerHTML = "<h3>בוקר</h3>";
+        const secE=document.createElement('div'); secE.className='section'; secE.innerHTML=`<h3>${L.evening}</h3>`;
+        const listE=schedule[i].evening;
+        if(listE.length){ const ol=document.createElement('ol'); listE.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secE.appendChild(ol); }
+        else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
 
-        const mList = schedule[i].morning;
-        if(mList.length){
-          const ol = document.createElement('ol');
-          mList.forEach((p)=> {
-            const li = document.createElement('li');
-            li.textContent = p.time ? `${p.name} — ${p.time}` : p.name;
-            ol.appendChild(li);
-          });
-          secMorning.appendChild(ol);
-        } else {
-          const em = document.createElement('div'); em.className="empty"; em.textContent="—";
-          secMorning.appendChild(em);
-        }
-
-        const secEvening = document.createElement('div');
-        secEvening.className = "section";
-        secEvening.innerHTML = "<h3>ערב</h3>";
-
-        const eList = schedule[i].evening;
-        if(eList.length){
-          const ol = document.createElement('ol');
-          eList.forEach((p)=> {
-            const li = document.createElement('li');
-            li.textContent = p.time ? `${p.name} — ${p.time}` : p.name;
-            ol.appendChild(li);
-          });
-          secEvening.appendChild(ol);
-        } else {
-          const em = document.createElement('div'); em.className="empty"; em.textContent="—";
-          secEvening.appendChild(em);
-        }
-
-        card.appendChild(head);
-        card.appendChild(secMorning);
-        card.appendChild(secEvening);
+        card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
       }
     }
 
-    render();
+    // init
+    document.getElementById('langToggle').addEventListener('click', (e)=>{
+      e.preventDefault();
+      setLang(getLang()==='he'?'ru':'he');
+    });
+    applyLang(); render();
   </script>
 </body>
 </html>
