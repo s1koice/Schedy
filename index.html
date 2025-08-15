@@ -12,19 +12,24 @@
     header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
     .controls{display:flex;gap:14px;align-items:center;padding:10px 20px;color:var(--muted);font-size:13px;flex-wrap:wrap}
+    .chip{display:inline-flex;gap:6px;align-items:center}
     .grid{display:flex;gap:16px;padding:20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
     .day-head .dow{font-weight:700}
     .day-head .date{color:var(--muted);font-size:14px}
     .section{margin-top:10px}
-    .section h3{font-size:14px;margin:0 0 8px 0;color:#333}
+    .section h3{font-size:14px;margin:0 0 8px 0;color:#333;display:flex;align-items:center;justify-content:space-between}
     ol{margin:0;padding-inline-start:18px}
-    li{padding:2px 0}
-    .empty{color:var(--muted);font-style:italic}
     [dir="rtl"] ol{padding-inline-start:22px}
+    li{padding:2px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .empty{color:var(--muted);font-style:italic}
+    .btn{border:0;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer}
+    .btn.ghost{background:#eef4ff;color:#1a73e8}
+    .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
+    .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+    select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
     footer{padding:4px 20px 16px;color:var(--muted);font-size:12px}
-    .chip{display:inline-flex;gap:6px;align-items:center}
   </style>
 </head>
 <body>
@@ -41,6 +46,10 @@
     <label class="chip">
       <input type="checkbox" id="showBO" />
       <span id="t_showBO">Показывать Backoffice</span>
+    </label>
+    <label class="chip">
+      <input type="checkbox" id="editMode" />
+      <span id="t_edit">Редактировать</span>
     </label>
   </div>
 
@@ -59,6 +68,9 @@
         weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
         langToggle:'עברית',
         showBO:'להציג בק־אופיס',
+        edit:'עריכה',
+        add:'הוספה', remove:'הסרה',
+        timePH:'שעה',
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
       },
       ru: {
@@ -70,6 +82,9 @@
         weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
         langToggle:'Русский',
         showBO:'Показывать Backoffice',
+        edit:'Редактировать',
+        add:'Добавить', remove:'Удалить',
+        timePH:'Время',
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
       }
     };
@@ -84,29 +99,31 @@
       document.getElementById('t_settings').textContent = L.settings;
       document.getElementById('t_tip').textContent = L.tip;
       document.getElementById('t_showBO').textContent = L.showBO;
+      document.getElementById('t_edit').textContent = L.edit;
       document.getElementById('langToggle').textContent = (getLang()==='he'?'Русский':'עברית');
     }
 
     // ===== data helpers =====
     function loadDates(){
       try{ const a=JSON.parse(localStorage.getItem('weekDates')||'[]'); if(Array.isArray(a)&&a.length===7) return a; }catch(e){}
-      // fallback: ближайшая неделя (вс-сб)
       const now=new Date(); const delta=(now.getDay()+7-0)%7; const sun=new Date(now); sun.setDate(now.getDate()-delta);
       return Array.from({length:7},(_,i)=>{ const d=new Date(sun); d.setDate(sun.getDate()+i); return d.toISOString().slice(0,10); });
     }
     function loadEmployees(){ try{ const a=JSON.parse(localStorage.getItem('employees')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+    function saveEmployees(list){ localStorage.setItem('employees', JSON.stringify(list)); }
 
-    // ===== build view =====
+    // ===== core builders =====
     function buildSchedule(employees){
       const showBO = localStorage.getItem('showBackend')==='1';
       const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
-      for(const emp of employees){
-        if(!showBO && emp.backend) continue; // фильтр backoffice
+      for(let empIndex=0; empIndex<employees.length; empIndex++){
+        const emp = employees[empIndex];
+        if(!showBO && emp.backend) continue;
         const name=(emp.name||'').trim(), shifts=emp.shifts||{};
         for(let i=0;i<7;i++){
           const d=shifts['d'+i]||{};
-          if(d.m) sched[i].morning.push({name, time: d.timeM||''});
-          if(d.e) sched[i].evening.push({name, time: d.timeE||''});
+          if(d.m) sched[i].morning.push({name, time: d.timeM||'', empIndex});
+          if(d.e) sched[i].evening.push({name, time: d.timeE||'', empIndex});
         }
       }
       const locale = getLang()==='he' ? 'he' : 'ru';
@@ -117,12 +134,71 @@
       return sched;
     }
 
+    // mutate helpers for edit mode
+    function removeEntry(employees, empIndex, dayIndex, part){ // part: 'm'|'e'
+      const emp = employees[empIndex];
+      if(!emp || !emp.shifts) return;
+      const key = 'd'+dayIndex;
+      emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
+      emp.shifts[key][part] = false;
+      if(part==='m') emp.shifts[key].timeM = '';
+      if(part==='e') emp.shifts[key].timeE = '';
+      saveEmployees(employees);
+    }
+    function addEntry(employees, empIndex, dayIndex, part, timeText){
+      const emp = employees[empIndex];
+      if(!emp) return;
+      const key = 'd'+dayIndex;
+      emp.shifts = emp.shifts || {};
+      emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
+      emp.shifts[key][part] = true;
+      if(part==='m') emp.shifts[key].timeM = timeText||'';
+      if(part==='e') emp.shifts[key].timeE = timeText||'';
+      saveEmployees(employees);
+    }
+
+    // UI: add form row
+    function renderAddRow(container, employees, dayIndex, part){
+      const L = I18N[getLang()];
+      const row = document.createElement('div');
+      row.className = 'addRow';
+
+      const sel = document.createElement('select');
+      // список сотрудников (с учётом флага showBO)
+      const showBO = localStorage.getItem('showBackend')==='1';
+      employees.forEach((e, idx)=>{
+        if(!showBO && e.backend) return;
+        const opt = document.createElement('option');
+        opt.value = String(idx);
+        opt.textContent = e.name || ('#'+(idx+1));
+        sel.appendChild(opt);
+      });
+
+      const time = document.createElement('input');
+      time.type='text';
+      time.placeholder = L.timePH;
+
+      const btn = document.createElement('button');
+      btn.className='btn'; btn.textContent=L.add;
+      btn.onclick = ()=>{
+        const empIndex = parseInt(sel.value,10);
+        addEntry(employees, empIndex, dayIndex, part, time.value.trim());
+        render(); // перерисуем
+      };
+
+      row.appendChild(sel);
+      row.appendChild(time);
+      row.appendChild(btn);
+      container.appendChild(row);
+    }
+
     function render(){
       const L = I18N[getLang()];
       const grid = document.getElementById('daysGrid'); grid.innerHTML='';
       const dates = loadDates();
       const employees = loadEmployees();
       const schedule = buildSchedule(employees);
+      const edit = document.getElementById('editMode').checked;
 
       for(let i=0;i<7;i++){
         const card=document.createElement('section'); card.className='day-card';
@@ -131,15 +207,69 @@
         const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(dates[i]);
         head.appendChild(dow); head.appendChild(date);
 
-        const secM=document.createElement('div'); secM.className='section'; secM.innerHTML=`<h3>${L.morning}</h3>`;
-        const listM=schedule[i].morning;
-        if(listM.length){ const ol=document.createElement('ol'); listM.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secM.appendChild(ol); }
-        else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
+        // MORNING
+        const secM=document.createElement('div'); secM.className='section';
+        const titleM=document.createElement('h3'); titleM.textContent=L.morning; secM.appendChild(titleM);
+        const mList=schedule[i].morning;
+        if(mList.length){
+          const ol=document.createElement('ol');
+          mList.forEach(p=>{
+            const li=document.createElement('li');
+            const span=document.createElement('span'); span.textContent=p.time?`${p.name} — ${p.time}`:p.name;
+            li.appendChild(span);
+            if(edit){
+              const btn=document.createElement('button'); btn.className='btn icon'; btn.title=L.remove; btn.textContent='×';
+              btn.onclick=()=>{ removeEntry(employees, p.empIndex, i, 'm'); render(); };
+              li.appendChild(btn);
+            }
+            ol.appendChild(li);
+          });
+          secM.appendChild(ol);
+        } else {
+          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em);
+        }
+        if(edit){
+          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent=L.add;
+          const addWrap=document.createElement('div');
+          addBtn.onclick=()=>{
+            addBtn.disabled=true;
+            renderAddRow(addWrap, employees, i, 'm');
+          };
+          titleM.appendChild(addBtn);
+          secM.appendChild(addWrap);
+        }
 
-        const secE=document.createElement('div'); secE.className='section'; secE.innerHTML=`<h3>${L.evening}</h3>`;
-        const listE=schedule[i].evening;
-        if(listE.length){ const ol=document.createElement('ol'); listE.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secE.appendChild(ol); }
-        else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
+        // EVENING
+        const secE=document.createElement('div'); secE.className='section';
+        const titleE=document.createElement('h3'); titleE.textContent=L.evening; secE.appendChild(titleE);
+        const eList=schedule[i].evening;
+        if(eList.length){
+          const ol=document.createElement('ol');
+          eList.forEach(p=>{
+            const li=document.createElement('li');
+            const span=document.createElement('span'); span.textContent=p.time?`${p.name} — ${p.time}`:p.name;
+            li.appendChild(span);
+            if(edit){
+              const btn=document.createElement('button'); btn.className='btn icon'; btn.title=L.remove; btn.textContent='×';
+              btn.onclick=()=>{ removeEntry(employees, p.empIndex, i, 'e'); render(); };
+              li.appendChild(btn);
+            }
+            ol.appendChild(li);
+          });
+          secE.appendChild(ol);
+        } else {
+          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em);
+        }
+        if(edit){
+          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent=L.add;
+          const addWrap=document.createElement('div');
+          addBtn.onclick=()=>{
+            addBtn.disabled=true;
+            renderAddRow(addWrap, employees, i, 'e');
+          };
+          titleE.appendChild(addBtn);
+          secE.appendChild(addWrap);
+        }
 
         card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
@@ -152,6 +282,7 @@
       localStorage.setItem('showBackend', e.target.checked ? '1' : '0');
       render();
     });
+    document.getElementById('editMode').addEventListener('change', render);
     document.getElementById('langToggle').addEventListener('click',(e)=>{e.preventDefault(); setLang(getLang()==='he'?'ru':'he');});
     applyLang(); render();
   </script>
