@@ -1,242 +1,278 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="he" dir="rtl">
 <head>
-    <meta charset="utf-8">
-    <title>Настройки расписания</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 20px;
-            background-color: #fafafa;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .dates-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .date-item {
-            margin: 5px;
-        }
-        .date-item label {
-            display: block;
-            font-size: 0.8em;
-            margin-bottom: 2px;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            overflow-x: auto;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 5px;
-            text-align: center;
-            font-size: 0.8em;
-        }
-        th {
-            background-color: #f0f0f0;
-        }
-        .name-input {
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .controls {
-            margin-top: 15px;
-            text-align: center;
-        }
-        button {
-            padding: 6px 12px;
-            margin: 3px;
-        }
-        .footer-link {
-            text-align: center;
-            margin-top: 20px;
-        }
-        @media (max-width: 600px) {
-            table th, table td {
-                font-size: 0.7em;
-                padding: 3px;
-            }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <title>סידור עבודה – הגדרות</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#fafafa; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px}
+    header h1{font-size:20px;margin:0}
+    header nav a{color:var(--accent);text-decoration:none}
+    .bar{height:1px;background:var(--line)}
+    .wrap{padding:20px;display:flex;flex-direction:column;gap:18px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .row label{font-size:14px;color:#333}
+    input[type="date"], input[type="text"]{
+      border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px
+    }
+    button{
+      border:0;background:var(--accent);color:#fff;border-radius:10px;
+      padding:8px 14px;font-size:14px;cursor:pointer
+    }
+    button.ghost{background:#eef4ff;color:#1a73e8}
+    table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid var(--line);padding:8px 6px;font-size:13px;text-align:center}
+    th{background:#f2f5ff}
+    td.name{min-width:180px;text-align:right}
+    .actions{display:flex;gap:8px}
+    .note{color:var(--muted);font-size:12px}
+  </style>
 </head>
 <body>
-    <h1>Настройки расписания</h1>
-    <div class="dates-container" id="datesContainer">
-        <!-- date inputs inserted here -->
-    </div>
-    <table id="employeesTable">
-        <thead>
-            <tr id="tableHeader">
-                <th rowspan="2">Имя</th>
-                <!-- dynamic date headers inserted here: two columns per day -->
-            </tr>
-            <tr id="shiftHeader">
-                <!-- dynamic shift headers inserted here: «Утро», «Вечер» per day -->
-            </tr>
-        </thead>
-        <tbody id="employeesBody">
-            <!-- employee rows -->
-        </tbody>
-    </table>
-    <div class="controls">
-        <button onclick="addEmployeeRow()">Добавить сотрудника</button>
-        <button onclick="saveData()">Сохранить</button>
-    </div>
-    <div class="footer-link">
-        <a href="index.html">Назад к расписанию</a>
-    </div>
+  <header>
+    <h1>הגדרות</h1>
+    <nav><a href="index.html">חזרה לסידור</a></nav>
+  </header>
+  <div class="bar"></div>
 
-    <script>
-    // Schedule data structure stored in localStorage
-    function loadData() {
-        const data = JSON.parse(localStorage.getItem('scheduleData') || '{}');
-        // ensure structure
-        if (!data.dates || data.dates.length !== 7) {
-            // initialize with next 7 days
-            const dates = [];
-            const today = new Date();
-            for (let i = 0; i < 7; i++) {
-                const d = new Date();
-                d.setDate(today.getDate() + i);
-                dates.push(d.toISOString().substring(0,10));
-            }
-            data.dates = dates;
-        }
-        if (!data.employees) {
-            data.employees = [];
-        }
-        return data;
-    }
-    let schedule = loadData();
+  <main class="wrap">
+    <!-- תאריכים לשבוע -->
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <strong>תאריכים לשבוע (ראשון–שבת):</strong>
+          <span class="note">הדפדפן שומר את הנתונים (localStorage)</span>
+        </div>
+        <div class="actions">
+          <button class="ghost" id="btnFillWeek">מילוי אוטומטי לשבוע הקרוב</button>
+          <button id="btnSaveDates">שמירת תאריכים</button>
+        </div>
+      </div>
+      <div class="row" id="datesRow" style="margin-top:10px"></div>
+    </section>
 
-    function saveData() {
-        localStorage.setItem('scheduleData', JSON.stringify(schedule));
-        alert('Данные сохранены');
+    <!-- טבלת עובדים -->
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <strong>עובדים ושיבוץ (בוקר/ערב לכל יום):</strong>
+        <div class="actions">
+          <button class="ghost" id="btnAdd">הוספת עובד</button>
+          <button id="btnSaveAll">שמירה</button>
+        </div>
+      </div>
+      <div class="note" style="margin-top:6px">ליד כל שם – 14 תיבות סימון: שתי תיבות לכל יום (בוקר / ערב). ניתן גם למלא שעת משמרת לצד כל סימון.</div>
+      <div style="overflow:auto; margin-top:10px">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th rowspan="2">שם</th>
+              <th colspan="2">א׳</th>
+              <th colspan="2">ב׳</th>
+              <th colspan="2">ג׳</th>
+              <th colspan="2">ד׳</th>
+              <th colspan="2">ה׳</th>
+              <th colspan="2">ו׳</th>
+              <th colspan="2">ש׳</th>
+              <th rowspan="2">מחיקה</th>
+            </tr>
+            <tr>
+              <!-- לכל יום: בוקר / ערב -->
+              <th>בוקר</th><th>ערב</th>
+              <th>בוקר</th><th>ערב</th>
+              <th>בוקר</th><th>ערב</th>
+              <th>בוקר</th><th>ערב</th>
+              <th>בוקר</th><th>ערב</th>
+              <th>בוקר</th><th>ערב</th>
+              <th>בוקר</th><th>ערב</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const WEEKDAYS_SHORT = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
+
+    function qs(s, el=document){ return el.querySelector(s); }
+    function ce(tag, props={}){ const el = document.createElement(tag); Object.assign(el, props); return el; }
+
+    // --- תאריכים ---
+    function loadDates(){
+      try{
+        const arr = JSON.parse(localStorage.getItem('weekDates')||"[]");
+        if(Array.isArray(arr) && arr.length===7) return arr;
+      }catch(e){}
+      return Array(7).fill("");
     }
-    function updateDate(idx, value) {
-        schedule.dates[idx] = value;
-        refreshHeaders();
+    function saveDates(dates){
+      localStorage.setItem('weekDates', JSON.stringify(dates));
+      alert("התאריכים נשמרו.");
     }
-    function addEmployeeRow(emp) {
-        if (!emp) {
-            emp = { name: '', shifts: {} };
-            schedule.employees.push(emp);
+    function fillNextWeek(){
+      const now = new Date();
+      const day = now.getDay(); // 0=Sunday
+      const delta = (day+7-0)%7;
+      const sunday = new Date(now); sunday.setDate(now.getDate()-delta);
+      const dates = Array.from({length:7}, (_,i)=>{
+        const d=new Date(sunday); d.setDate(sunday.getDate()+i);
+        return d.toLocaleDateString('he-IL');
+      });
+      return dates;
+    }
+    function renderDates(){
+      const row = qs('#datesRow'); row.innerHTML="";
+      const stored = loadDates();
+      for(let i=0;i<7;i++){
+        const wrap = ce('div');
+        const label = ce('label'); label.textContent = WEEKDAYS_SHORT[i] + ": ";
+        const input = ce('input',{type:'text', value: stored[i]||"", style:"width:120px"});
+        input.dataset.idx = i;
+        wrap.appendChild(label); wrap.appendChild(input);
+        row.appendChild(wrap);
+      }
+    }
+
+    // --- עובדים ---
+    function loadEmployees(){
+      try{
+        const arr = JSON.parse(localStorage.getItem('employees')||"[]");
+        if(Array.isArray(arr)) return arr;
+      }catch(e){}
+      return [];
+    }
+    function saveEmployees(list){
+      localStorage.setItem('employees', JSON.stringify(list));
+      alert("הנתונים נשמרו.");
+    }
+
+    function renderTable(){
+      const tbody = qs('#tbody'); tbody.innerHTML="";
+      const employees = loadEmployees();
+      for(let r=0;r<employees.length;r++){
+        const emp = employees[r];
+        const tr = ce('tr');
+
+        // שם
+        const tdName = ce('td',{className:'name'});
+        const nameInput = ce('input',{type:'text', value: emp.name||"", style:"width:100%"});
+        nameInput.oninput = ()=>{ emp.name = nameInput.value; autoSave(); };
+        tdName.appendChild(nameInput);
+        tr.appendChild(tdName);
+
+        // בוקר/ערב לכל יום + שדות שעה
+        for(let i=0;i<7;i++){
+          const dKey = "d"+i;
+          emp.shifts = emp.shifts || {};
+          emp.shifts[dKey] = emp.shifts[dKey] || {m:false, e:false, timeM:"", timeE:""};
+
+          // בוקר
+          const tdM = ce('td');
+          const wrapM = ce('div',{style:"display:flex;gap:6px;align-items:center;justify-content:center"});
+          const cbM = ce('input',{type:'checkbox', checked: !!emp.shifts[dKey].m});
+          const timeM = ce('input',{type:'text', placeholder:'שעה', value: emp.shifts[dKey].timeM||"", style:"width:70px"});
+          cbM.onchange = ()=>{ emp.shifts[dKey].m = cbM.checked; autoSave(); };
+          timeM.oninput = ()=>{ emp.shifts[dKey].timeM = timeM.value; autoSave(); };
+          wrapM.appendChild(cbM); wrapM.appendChild(timeM); tdM.appendChild(wrapM);
+          tr.appendChild(tdM);
+
+          // ערב
+          const tdE = ce('td');
+          const wrapE = ce('div',{style:"display:flex;gap:6px;align-items:center;justify-content:center"});
+          const cbE = ce('input',{type:'checkbox', checked: !!emp.shifts[dKey].e});
+          const timeE = ce('input',{type:'text', placeholder:'שעה', value: emp.shifts[dKey].timeE||"", style:"width:70px"});
+          cbE.onchange = ()=>{ emp.shifts[dKey].e = cbE.checked; autoSave(); };
+          timeE.oninput = ()=>{ emp.shifts[dKey].timeE = timeE.value; autoSave(); };
+          wrapE.appendChild(cbE); wrapE.appendChild(timeE); tdE.appendChild(wrapE);
+          tr.appendChild(tdE);
         }
-        const rowIndex = schedule.employees.indexOf(emp);
-        const tbody = document.getElementById('employeesBody');
-        const tr = document.createElement('tr');
-        // name cell
-        const nameTd = document.createElement('td');
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'name-input';
-        nameInput.value = emp.name;
-        nameInput.onchange = () => {
-            emp.name = nameInput.value;
+
+        // מחיקה
+        const tdDel = ce('td');
+        const delBtn = ce('button',{textContent:'מחיקה', className:'ghost'});
+        delBtn.onclick = ()=>{
+          const list = loadEmployees();
+          list.splice(r,1);
+          saveEmployees(list);
+          renderTable();
         };
-        nameTd.appendChild(nameInput);
-        tr.appendChild(nameTd);
-        // shift checkboxes
-        for (let d = 0; d < 7; d++) {
-            // morning
-            const mTd = document.createElement('td');
-            const mCheck = document.createElement('input');
-            mCheck.type = 'checkbox';
-            mCheck.checked = !!emp.shifts[d + '-morning'];
-            mCheck.onchange = () => {
-                if (mCheck.checked) {
-                    emp.shifts[d + '-morning'] = true;
-                } else {
-                    delete emp.shifts[d + '-morning'];
-                }
-            };
-            mTd.appendChild(mCheck);
-            tr.appendChild(mTd);
-            // evening
-            const eTd = document.createElement('td');
-            const eCheck = document.createElement('input');
-            eCheck.type = 'checkbox';
-            eCheck.checked = !!emp.shifts[d + '-evening'];
-            eCheck.onchange = () => {
-                if (eCheck.checked) {
-                    emp.shifts[d + '-evening'] = true;
-                } else {
-                    delete emp.shifts[d + '-evening'];
-                }
-            };
-            eTd.appendChild(eCheck);
-            tr.appendChild(eTd);
-        }
+        tdDel.appendChild(delBtn);
+        tr.appendChild(tdDel);
+
         tbody.appendChild(tr);
+      }
     }
-    function refreshHeaders() {
-        const tableHeader = document.getElementById('tableHeader');
-        const shiftHeader = document.getElementById('shiftHeader');
-        // clear existing th except first
-        while (tableHeader.children.length > 1) tableHeader.removeChild(tableHeader.lastChild);
-        while (shiftHeader.firstChild) shiftHeader.removeChild(shiftHeader.firstChild);
-        // update dates inputs and headers
-        schedule.dates.forEach((dateStr, idx) => {
-            // date header spanning two columns
-            const thDate = document.createElement('th');
-            thDate.colSpan = 2;
-            thDate.textContent = formatDateLabel(dateStr);
-            tableHeader.appendChild(thDate);
-            // shift titles
-            const thM = document.createElement('th');
-            thM.textContent = 'Утро';
-            const thE = document.createElement('th');
-            thE.textContent = 'Вечер';
-            shiftHeader.appendChild(thM);
-            shiftHeader.appendChild(thE);
-        });
+
+    function addEmployee(){
+      const list = loadEmployees();
+      list.push({ name:"", shifts: {} });
+      saveEmployees(list);
+      renderTable();
     }
-    function formatDateLabel(dateStr) {
-        if (!dateStr) return '';
-        const d = new Date(dateStr);
-        if (isNaN(d)) return dateStr;
-        const options = { weekday: 'short' };
-        const dow = d.toLocaleDateString('ru-RU', options);
-        const day = ('0' + d.getDate()).slice(-2);
-        const month = ('0' + (d.getMonth()+1)).slice(-2);
-        return dow.charAt(0).toUpperCase() + dow.slice(1) + ' ' + day + '-' + month;
+
+    let saveTimer;
+    function autoSave(){
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(()=>{
+        const list = tableToModel();
+        localStorage.setItem('employees', JSON.stringify(list));
+        // אין alert כאן כדי לא להציק בזמן עריכה
+      }, 250);
     }
-    function populateDates() {
-        const container = document.getElementById('datesContainer');
-        container.innerHTML = '';
-        schedule.dates.forEach((val, idx) => {
-            const div = document.createElement('div');
-            div.className = 'date-item';
-            const label = document.createElement('label');
-            label.textContent = 'Дата ' + (idx + 1);
-            const input = document.createElement('input');
-            input.type = 'date';
-            input.value = val;
-            input.onchange = () => updateDate(idx, input.value);
-            div.appendChild(label);
-            div.appendChild(input);
-            container.appendChild(div);
-        });
+
+    function tableToModel(){
+      const rows = Array.from(qs('#tbody').children);
+      const list = [];
+      rows.forEach(tr=>{
+        const tds = Array.from(tr.children);
+        const name = tds[0].querySelector('input').value.trim();
+        const emp = { name, shifts:{} };
+        for(let i=0;i<7;i++){
+          // לכל יום יש 2 תאים (בוקר/ערב) אחרי תא השם => טווח [1..14]
+          const tdM = tds[1 + i*2];
+          const tdE = tds[1 + i*2 + 1];
+          const m = tdM.querySelector('input[type="checkbox"]').checked;
+          const timeM = tdM.querySelector('input[type="text"]').value.trim();
+          const e = tdE.querySelector('input[type="checkbox"]').checked;
+          const timeE = tdE.querySelector('input[type="text"]').value.trim();
+          emp.shifts["d"+i] = {m, e, timeM, timeE};
+        }
+        list.push(emp);
+      });
+      return list;
     }
-    function populateEmployees() {
-        const tbody = document.getElementById('employeesBody');
-        tbody.innerHTML = '';
-        schedule.employees.forEach(emp => {
-            addEmployeeRow(emp);
-        });
+
+    // --- init ---
+    function renderDatesInputs(){
+      renderDates();
+      // חיבור כפתורים
+      qs('#btnFillWeek').onclick = ()=>{
+        const dates = fillNextWeek();
+        localStorage.setItem('weekDates', JSON.stringify(dates));
+        renderDates();
+      };
+      qs('#btnSaveDates').onclick = ()=>{
+        const inputs = Array.from(qs('#datesRow').querySelectorAll('input[type="text"]'));
+        const dates = inputs.map(i=>i.value.trim());
+        saveDates(dates);
+      };
     }
-    document.addEventListener('DOMContentLoaded', () => {
-        populateDates();
-        refreshHeaders();
-        populateEmployees();
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      renderDatesInputs();
+      renderTable();
+      qs('#btnAdd').onclick = addEmployee;
+      qs('#btnSaveAll').onclick = ()=>{
+        const list = tableToModel();
+        saveEmployees(list);
+      };
     });
-    </script>
+  </script>
 </body>
 </html>
