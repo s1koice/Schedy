@@ -1,52 +1,47 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="he">
 <head>
   <meta charset="utf-8" />
   <title>סידור עבודה – הגדרות</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{
-      --bg:#fafafa; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8;
-    }
+    :root{ --bg:#fafafa; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
     header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px}
     header h1{font-size:20px;margin:0}
-    header nav a{color:var(--accent);text-decoration:none}
+    header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
     .wrap{padding:20px;display:flex;flex-direction:column;gap:18px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:14px}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .row label{font-size:14px;color:#333}
-    input[type="date"], input[type="text"]{
-      border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px
-    }
-    button{
-      border:0;background:var(--accent);color:#fff;border-radius:10px;
-      padding:8px 14px;font-size:14px;cursor:pointer
-    }
+    select, input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px}
+    button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:8px 14px;font-size:14px;cursor:pointer}
     button.ghost{background:#eef4ff;color:#1a73e8}
     table{width:100%;border-collapse:collapse}
     th,td{border:1px solid var(--line);padding:8px 6px;font-size:13px;text-align:center}
     th{background:#f2f5ff}
-    td.name{min-width:180px;text-align:right}
+    td.name{min-width:180px;text-align:start}
     .actions{display:flex;gap:8px}
     .note{color:var(--muted);font-size:12px}
   </style>
 </head>
 <body>
   <header>
-    <h1>הגדרות</h1>
-    <nav><a href="index.html">חזרה לסידור</a></nav>
+    <h1 id="t_title">הגדרות</h1>
+    <nav>
+      <a id="t_back" href="index.html">חזרה לסידור</a>
+      <a href="#" id="langToggle">עברית</a>
+    </nav>
   </header>
   <div class="bar"></div>
 
   <main class="wrap">
-    <!-- תאריכים לשבוע -->
+    <!-- даты -->
     <section class="card">
       <div class="row" style="justify-content:space-between">
-        <div>
-          <strong>תאריכים לשבוע (ראשון–שבת):</strong>
-          <span class="note">הדפדפן שומר את הנתונים (localStorage)</span>
+        <div><strong id="t_datesTitle">תאריכים לשבוע (ראשון–שבת):</strong>
+          <span class="note" id="t_note">הדפדפן שומר את הנתונים (localStorage)</span>
         </div>
         <div class="actions">
           <button class="ghost" id="btnFillWeek">מילוי אוטומטי לשבוע הקרוב</button>
@@ -56,41 +51,19 @@
       <div class="row" id="datesRow" style="margin-top:10px"></div>
     </section>
 
-    <!-- טבלת עובדים -->
+    <!-- сотрудники -->
     <section class="card">
       <div class="row" style="justify-content:space-between">
-        <strong>עובדים ושיבוץ (בוקר/ערב לכל יום):</strong>
+        <strong id="t_staff">עובדים ושיבוץ (בוקר/ערב לכל יום):</strong>
         <div class="actions">
           <button class="ghost" id="btnAdd">הוספת עובד</button>
           <button id="btnSaveAll">שמירה</button>
         </div>
       </div>
-      <div class="note" style="margin-top:6px">ליד כל שם – 14 תיבות סימון: שתי תיבות לכל יום (בוקר / ערב). ניתן גם למלא שעת משמרת לצד כל סימון.</div>
+      <div class="note" style="margin-top:6px" id="t_hint">ליד כל שם – 14 תיבות סימון: שתי תיבות לכל יום (בוקר / ערב). ניתן גם למלא שעת משמרת לצד כל סימון.</div>
       <div style="overflow:auto; margin-top:10px">
         <table id="tbl">
-          <thead>
-            <tr>
-              <th rowspan="2">שם</th>
-              <th colspan="2">א׳</th>
-              <th colspan="2">ב׳</th>
-              <th colspan="2">ג׳</th>
-              <th colspan="2">ד׳</th>
-              <th colspan="2">ה׳</th>
-              <th colspan="2">ו׳</th>
-              <th colspan="2">ש׳</th>
-              <th rowspan="2">מחיקה</th>
-            </tr>
-            <tr>
-              <!-- לכל יום: בוקר / ערב -->
-              <th>בוקר</th><th>ערב</th>
-              <th>בוקר</th><th>ערב</th>
-              <th>בוקר</th><th>ערב</th>
-              <th>בוקר</th><th>ערב</th>
-              <th>בוקר</th><th>ערב</th>
-              <th>בוקר</th><th>ערב</th>
-              <th>בוקר</th><th>ערב</th>
-            </tr>
-          </thead>
+          <thead id="thead"></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
@@ -98,181 +71,241 @@
   </main>
 
   <script>
-    const WEEKDAYS_SHORT = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
+    // i18n
+    const I18N = {
+      he: {
+        _dir:'rtl',
+        title:'הגדרות', back:'חזרה לסידור', lang:'עברית',
+        datesTitle:'תאריכים לשבוע (ראשון–שבת):',
+        note:'הדפדפן שומר את הנתונים (localStorage)',
+        autoFill:'מילוי אוטומטי לשבוע הקרוב',
+        saveDates:'שמירת תאריכים',
+        staff:'עובדים ושיבוץ (בוקר/ערב לכל יום):',
+        add:'הוספת עובד', save:'שמירה',
+        hint:'ליד כל שם – 14 תיבות סימון: שתי תיבות לכל יום (בוקר / ערב). ניתן גם למלא שעת משמרת לצד כל סימון.',
+        weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
+        short:['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'],
+        morning:'בוקר', evening:'ערב',
+        isoToView:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
+        viewToISO:(s)=> toISOFromString(s),
+      },
+      ru: {
+        _dir:'ltr',
+        title:'Настройки', back:'Назад к расписанию', lang:'Русский',
+        datesTitle:'Даты на неделю (Вс–Сб):',
+        note:'Данные сохраняются в браузере (localStorage)',
+        autoFill:'Авто: ближайшая неделя',
+        saveDates:'Сохранить даты',
+        staff:'Сотрудники и смены (утро/вечер на каждый день):',
+        add:'Добавить сотрудника', save:'Сохранить',
+        hint:'У каждого имени — 14 чекбоксов: по два на день (утро / вечер). Можно указать время смены рядом.',
+        weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
+        short:['Вс','Пн','Вт','Ср','Чт','Пт','Сб'],
+        morning:'Утро', evening:'Вечер',
+        isoToView:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
+        viewToISO:(s)=> toISOFromString(s),
+      }
+    };
+    function getLang(){ return localStorage.getItem('lang')||'he'; }
+    function setLang(l){ localStorage.setItem('lang', l); applyLang(); renderAll(); }
 
-    function qs(s, el=document){ return el.querySelector(s); }
-    function ce(tag, props={}){ const el = document.createElement(tag); Object.assign(el, props); return el; }
+    // utils
+    function toISOFromString(s){
+      // accepts DD.MM.YYYY or locale date; fallback to Date.parse
+      const m = (s||'').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      if(m){ const [_,d,mo,y]=m; return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+      const t = Date.parse(s); if(!isNaN(t)) return new Date(t).toISOString().slice(0,10);
+      return '';
+    }
+    function formatISO(iso, lang){
+      try{
+        return I18N[lang].isoToView(iso);
+      }catch(e){ return iso; }
+    }
+    function sundayOf(d){
+      const dt = new Date(d); const delta = (dt.getDay()+7-0)%7;
+      const s = new Date(dt); s.setDate(dt.getDate()-delta); s.setHours(0,0,0,0); return s;
+    }
+    function nextNDaysOptions(n=60, lang='he'){
+      const start = new Date(); start.setHours(0,0,0,0);
+      const arr=[];
+      for(let i=0;i<n;i++){
+        const d = new Date(start); d.setDate(start.getDate()+i);
+        const iso = d.toISOString().slice(0,10);
+        arr.push({ iso, label: formatISO(iso, lang) });
+      }
+      return arr;
+    }
 
-    // --- תאריכים ---
+    // data
     function loadDates(){
-      try{
-        const arr = JSON.parse(localStorage.getItem('weekDates')||"[]");
-        if(Array.isArray(arr) && arr.length===7) return arr;
-      }catch(e){}
-      return Array(7).fill("");
+      try{ const arr=JSON.parse(localStorage.getItem('weekDates')||'[]'); if(Array.isArray(arr)&&arr.length===7) return arr; }catch(e){}
+      // default: upcoming Sunday..Saturday
+      const s=sundayOf(new Date()); return Array.from({length:7},(_,i)=>{ const d=new Date(s); d.setDate(s.getDate()+i); return d.toISOString().slice(0,10); });
     }
-    function saveDates(dates){
-      localStorage.setItem('weekDates', JSON.stringify(dates));
-      alert("התאריכים נשמרו.");
-    }
-    function fillNextWeek(){
-      const now = new Date();
-      const day = now.getDay(); // 0=Sunday
-      const delta = (day+7-0)%7;
-      const sunday = new Date(now); sunday.setDate(now.getDate()-delta);
-      const dates = Array.from({length:7}, (_,i)=>{
-        const d=new Date(sunday); d.setDate(sunday.getDate()+i);
-        return d.toLocaleDateString('he-IL');
-      });
-      return dates;
-    }
+    function saveDates(dates){ localStorage.setItem('weekDates', JSON.stringify(dates)); alert(I18N[getLang()].saveDates+' ✓'); }
+    function loadEmployees(){ try{ const arr=JSON.parse(localStorage.getItem('employees')||'[]'); return Array.isArray(arr)?arr:[]; }catch(e){ return []; } }
+    function saveEmployees(list){ localStorage.setItem('employees', JSON.stringify(list)); alert(I18N[getLang()].save+' ✓'); }
+
+    // render dates as SELECT (dropdown)
     function renderDates(){
-      const row = qs('#datesRow'); row.innerHTML="";
-      const stored = loadDates();
-      for(let i=0;i<7;i++){
-        const wrap = ce('div');
-        const label = ce('label'); label.textContent = WEEKDAYS_SHORT[i] + ": ";
-        const input = ce('input',{type:'text', value: stored[i]||"", style:"width:120px"});
-        input.dataset.idx = i;
-        wrap.appendChild(label); wrap.appendChild(input);
+      const L=I18N[getLang()];
+      const row=document.getElementById('datesRow'); row.innerHTML='';
+      const dates=loadDates();
+      const options=nextNDaysOptions(90, getLang());
+
+      L.weekdaysFull.forEach((name, i)=>{
+        const wrap=document.createElement('div');
+        const label=document.createElement('label'); label.textContent = name+': ';
+        const sel=document.createElement('select'); sel.dataset.idx=i;
+        options.forEach(o=>{
+          const opt=document.createElement('option'); opt.value=o.iso; opt.textContent=o.label; sel.appendChild(opt);
+        });
+        sel.value = dates[i] || options[0].iso;
+        sel.onchange = ()=> autoSaveDates();
+        wrap.appendChild(label); wrap.appendChild(sel);
         row.appendChild(wrap);
-      }
+      });
+
+      document.getElementById('btnFillWeek').textContent=L.autoFill;
+      document.getElementById('btnSaveDates').textContent=L.saveDates;
     }
 
-    // --- עובדים ---
-    function loadEmployees(){
-      try{
-        const arr = JSON.parse(localStorage.getItem('employees')||"[]");
-        if(Array.isArray(arr)) return arr;
-      }catch(e){}
-      return [];
-    }
-    function saveEmployees(list){
-      localStorage.setItem('employees', JSON.stringify(list));
-      alert("הנתונים נשמרו.");
-    }
-
-    function renderTable(){
-      const tbody = qs('#tbody'); tbody.innerHTML="";
-      const employees = loadEmployees();
-      for(let r=0;r<employees.length;r++){
-        const emp = employees[r];
-        const tr = ce('tr');
-
-        // שם
-        const tdName = ce('td',{className:'name'});
-        const nameInput = ce('input',{type:'text', value: emp.name||"", style:"width:100%"});
-        nameInput.oninput = ()=>{ emp.name = nameInput.value; autoSave(); };
-        tdName.appendChild(nameInput);
-        tr.appendChild(tdName);
-
-        // בוקר/ערב לכל יום + שדות שעה
-        for(let i=0;i<7;i++){
-          const dKey = "d"+i;
-          emp.shifts = emp.shifts || {};
-          emp.shifts[dKey] = emp.shifts[dKey] || {m:false, e:false, timeM:"", timeE:""};
-
-          // בוקר
-          const tdM = ce('td');
-          const wrapM = ce('div',{style:"display:flex;gap:6px;align-items:center;justify-content:center"});
-          const cbM = ce('input',{type:'checkbox', checked: !!emp.shifts[dKey].m});
-          const timeM = ce('input',{type:'text', placeholder:'שעה', value: emp.shifts[dKey].timeM||"", style:"width:70px"});
-          cbM.onchange = ()=>{ emp.shifts[dKey].m = cbM.checked; autoSave(); };
-          timeM.oninput = ()=>{ emp.shifts[dKey].timeM = timeM.value; autoSave(); };
-          wrapM.appendChild(cbM); wrapM.appendChild(timeM); tdM.appendChild(wrapM);
-          tr.appendChild(tdM);
-
-          // ערב
-          const tdE = ce('td');
-          const wrapE = ce('div',{style:"display:flex;gap:6px;align-items:center;justify-content:center"});
-          const cbE = ce('input',{type:'checkbox', checked: !!emp.shifts[dKey].e});
-          const timeE = ce('input',{type:'text', placeholder:'שעה', value: emp.shifts[dKey].timeE||"", style:"width:70px"});
-          cbE.onchange = ()=>{ emp.shifts[dKey].e = cbE.checked; autoSave(); };
-          timeE.oninput = ()=>{ emp.shifts[dKey].timeE = timeE.value; autoSave(); };
-          wrapE.appendChild(cbE); wrapE.appendChild(timeE); tdE.appendChild(wrapE);
-          tr.appendChild(tdE);
-        }
-
-        // מחיקה
-        const tdDel = ce('td');
-        const delBtn = ce('button',{textContent:'מחיקה', className:'ghost'});
-        delBtn.onclick = ()=>{
-          const list = loadEmployees();
-          list.splice(r,1);
-          saveEmployees(list);
-          renderTable();
-        };
-        tdDel.appendChild(delBtn);
-        tr.appendChild(tdDel);
-
-        tbody.appendChild(tr);
-      }
-    }
-
-    function addEmployee(){
-      const list = loadEmployees();
-      list.push({ name:"", shifts: {} });
-      saveEmployees(list);
-      renderTable();
-    }
-
-    let saveTimer;
-    function autoSave(){
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(()=>{
-        const list = tableToModel();
-        localStorage.setItem('employees', JSON.stringify(list));
-        // אין alert כאן כדי לא להציק בזמן עריכה
+    let saveDatesTimer;
+    function autoSaveDates(){
+      clearTimeout(saveDatesTimer);
+      saveDatesTimer = setTimeout(()=>{
+        const selects = Array.from(document.querySelectorAll('#datesRow select'));
+        const arr = selects.map(s=>s.value);
+        localStorage.setItem('weekDates', JSON.stringify(arr));
       }, 250);
     }
 
-    function tableToModel(){
-      const rows = Array.from(qs('#tbody').children);
-      const list = [];
-      rows.forEach(tr=>{
-        const tds = Array.from(tr.children);
-        const name = tds[0].querySelector('input').value.trim();
-        const emp = { name, shifts:{} };
+    // render staff table
+    function renderTable(){
+      const L=I18N[getLang()];
+      const thead=document.getElementById('thead'); const tbody=document.getElementById('tbody'); tbody.innerHTML='';
+      // header
+      thead.innerHTML='';
+      const tr1=document.createElement('tr');
+      const thName=document.createElement('th'); thName.rowSpan=2; thName.textContent=(getLang()==='he'?'שם':'Имя');
+      tr1.appendChild(thName);
+      L.short.forEach(()=>{ const th=document.createElement('th'); th.colSpan=2; th.textContent=''; tr1.appendChild(th); });
+      const thDel=document.createElement('th'); thDel.rowSpan=2; thDel.textContent=(getLang()==='he'?'מחיקה':'Удалить'); tr1.appendChild(thDel);
+
+      const tr2=document.createElement('tr');
+      for(let i=0;i<7;i++){ const thM=document.createElement('th'); thM.textContent=L.morning; tr2.appendChild(thM);
+                             const thE=document.createElement('th'); thE.textContent=L.evening; tr2.appendChild(thE); }
+      thead.appendChild(tr1); thead.appendChild(tr2);
+
+      const employees=loadEmployees();
+      employees.forEach((emp, r)=>{
+        const tr=document.createElement('tr');
+        const tdName=document.createElement('td'); tdName.className='name';
+        const inp=document.createElement('input'); inp.type='text'; inp.value=emp.name||''; inp.style.width='100%';
+        inp.oninput=()=>{ emp.name=inp.value; autoSaveEmployees(); };
+        tdName.appendChild(inp); tr.appendChild(tdName);
+
         for(let i=0;i<7;i++){
-          // לכל יום יש 2 תאים (בוקר/ערב) אחרי תא השם => טווח [1..14]
-          const tdM = tds[1 + i*2];
-          const tdE = tds[1 + i*2 + 1];
-          const m = tdM.querySelector('input[type="checkbox"]').checked;
-          const timeM = tdM.querySelector('input[type="text"]').value.trim();
-          const e = tdE.querySelector('input[type="checkbox"]').checked;
-          const timeE = tdE.querySelector('input[type="text"]').value.trim();
-          emp.shifts["d"+i] = {m, e, timeM, timeE};
+          const key='d'+i; emp.shifts=emp.shifts||{}; emp.shifts[key]=emp.shifts[key]||{m:false,e:false,timeM:'',timeE:''};
+
+          // morning
+          const tdM=document.createElement('td');
+          const wM=document.createElement('div'); wM.style='display:flex;gap:6px;align-items:center;justify-content:center';
+          const cbM=document.createElement('input'); cbM.type='checkbox'; cbM.checked=!!emp.shifts[key].m;
+          const tM=document.createElement('input'); tM.type='text'; tM.placeholder=(getLang()==='he'?'שעה':'Время'); tM.value=emp.shifts[key].timeM||''; tM.style.width='70px';
+          cbM.onchange=()=>{ emp.shifts[key].m=cbM.checked; autoSaveEmployees(); }; tM.oninput=()=>{ emp.shifts[key].timeM=tM.value; autoSaveEmployees(); };
+          wM.appendChild(cbM); wM.appendChild(tM); tdM.appendChild(wM); tr.appendChild(tdM);
+
+          // evening
+          const tdE=document.createElement('td');
+          const wE=document.createElement('div'); wE.style='display:flex;gap:6px;align-items:center;justify-content:center';
+          const cbE=document.createElement('input'); cbE.type='checkbox'; cbE.checked=!!emp.shifts[key].e;
+          const tE=document.createElement('input'); tE.type='text'; tE.placeholder=(getLang()==='he'?'שעה':'Время'); tE.value=emp.shifts[key].timeE||''; tE.style.width='70px';
+          cbE.onchange=()=>{ emp.shifts[key].e=cbE.checked; autoSaveEmployees(); }; tE.oninput=()=>{ emp.shifts[key].timeE=tE.value; autoSaveEmployees(); };
+          wE.appendChild(cbE); wE.appendChild(tE); tdE.appendChild(wE); tr.appendChild(tdE);
+        }
+
+        const tdDel=document.createElement('td');
+        const del=document.createElement('button'); del.className='ghost'; del.textContent=(getLang()==='he'?'מחיקה':'Удалить');
+        del.onclick=()=>{ const list=loadEmployees(); list.splice(r,1); saveEmployees(list); renderTable(); };
+        tdDel.appendChild(del); tr.appendChild(tdDel);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    let saveEmpTimer;
+    function autoSaveEmployees(){
+      clearTimeout(saveEmpTimer);
+      saveEmpTimer=setTimeout(()=>{
+        const list = tableToModel();
+        localStorage.setItem('employees', JSON.stringify(list));
+      }, 250);
+    }
+    function tableToModel(){
+      const rows = Array.from(document.querySelectorAll('#tbody tr'));
+      const list=[];
+      rows.forEach(tr=>{
+        const tds=Array.from(tr.children);
+        const name = tds[0].querySelector('input').value.trim();
+        const emp={name, shifts:{}};
+        for(let i=0;i<7;i++){
+          const tdM=tds[1+i*2], tdE=tds[1+i*2+1];
+          const m=tdM.querySelector('input[type="checkbox"]').checked;
+          const timeM=tdM.querySelector('input[type="text"]').value.trim();
+          const e=tdE.querySelector('input[type="checkbox"]').checked;
+          const timeE=tdE.querySelector('input[type="text"]').value.trim();
+          emp.shifts['d'+i]={m,e,timeM,timeE};
         }
         list.push(emp);
       });
       return list;
     }
 
-    // --- init ---
-    function renderDatesInputs(){
-      renderDates();
-      // חיבור כפתורים
-      qs('#btnFillWeek').onclick = ()=>{
-        const dates = fillNextWeek();
-        localStorage.setItem('weekDates', JSON.stringify(dates));
-        renderDates();
-      };
-      qs('#btnSaveDates').onclick = ()=>{
-        const inputs = Array.from(qs('#datesRow').querySelectorAll('input[type="text"]'));
-        const dates = inputs.map(i=>i.value.trim());
-        saveDates(dates);
-      };
+    // top controls + language
+    function applyLang(){
+      const L=I18N[getLang()];
+      document.documentElement.dir = L._dir;
+      document.documentElement.lang = getLang();
+      document.getElementById('t_title').textContent=L.title;
+      document.getElementById('t_back').textContent=L.back;
+      document.getElementById('langToggle').textContent = (getLang()==='he'?'Русский':'עברית');
+      document.getElementById('t_datesTitle').textContent=L.datesTitle;
+      document.getElementById('t_note').textContent=L.note;
+      document.getElementById('btnFillWeek').textContent=L.autoFill;
+      document.getElementById('btnSaveDates').textContent=L.saveDates;
+      document.getElementById('t_staff').textContent=L.staff;
+      document.getElementById('btnAdd').textContent=L.add;
+      document.getElementById('btnSaveAll').textContent=L.save;
+      document.getElementById('t_hint').textContent=L.hint;
     }
 
-    document.addEventListener('DOMContentLoaded', ()=>{
-      renderDatesInputs();
-      renderTable();
-      qs('#btnAdd').onclick = addEmployee;
-      qs('#btnSaveAll').onclick = ()=>{
-        const list = tableToModel();
-        saveEmployees(list);
-      };
+    function renderAll(){ renderDates(); renderTable(); }
+
+    // events
+    document.getElementById('langToggle').addEventListener('click', (e)=>{
+      e.preventDefault(); setLang(getLang()==='he'?'ru':'he');
     });
+    document.getElementById('btnFillWeek').addEventListener('click', ()=>{
+      const s = sundayOf(new Date());
+      const arr = Array.from({length:7},(_,i)=>{ const d=new Date(s); d.setDate(s.getDate()+i); return d.toISOString().slice(0,10); });
+      localStorage.setItem('weekDates', JSON.stringify(arr));
+      renderDates();
+    });
+    document.getElementById('btnSaveDates').addEventListener('click', ()=>{
+      const selects = Array.from(document.querySelectorAll('#datesRow select'));
+      saveDates(selects.map(s=>s.value));
+    });
+    document.getElementById('btnAdd').addEventListener('click', ()=>{
+      const list=loadEmployees(); list.push({name:'',shifts:{}}); saveEmployees(list); renderTable();
+    });
+    document.getElementById('btnSaveAll').addEventListener('click', ()=>{
+      saveEmployees(tableToModel());
+    });
+
+    // init
+    applyLang(); renderAll();
   </script>
 </body>
 </html>
