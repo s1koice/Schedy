@@ -7,10 +7,11 @@
   <style>
     :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
-    header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px;flex-wrap:wrap}
     header h1{font-size:20px;margin:0}
     header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
+    .controls{display:flex;gap:14px;align-items:center;padding:10px 20px;color:var(--muted);font-size:13px;flex-wrap:wrap}
     .grid{display:flex;gap:16px;padding:20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
@@ -21,9 +22,9 @@
     ol{margin:0;padding-inline-start:18px}
     li{padding:2px 0}
     .empty{color:var(--muted);font-style:italic}
-    footer{padding:10px 20px 20px;color:var(--muted);font-size:12px}
-    /* direction tweaks */
     [dir="rtl"] ol{padding-inline-start:22px}
+    footer{padding:4px 20px 16px;color:var(--muted);font-size:12px}
+    .chip{display:inline-flex;gap:6px;align-items:center}
   </style>
 </head>
 <body>
@@ -31,92 +32,76 @@
     <h1 id="t_title">סידור עבודה</h1>
     <nav>
       <a id="t_settings" href="settings.html">הגדרות</a>
-      <a href="#" id="langToggle" title="Language">עברית</a>
+      <a href="#" id="langToggle">Русский</a>
     </nav>
   </header>
   <div class="bar"></div>
+
+  <div class="controls">
+    <label class="chip">
+      <input type="checkbox" id="showBO" />
+      <span id="t_showBO">Показывать Backoffice</span>
+    </label>
+  </div>
 
   <main class="grid" id="daysGrid"></main>
   <footer id="t_tip">העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).</footer>
 
   <script>
-    // i18n
+    // ===== i18n =====
     const I18N = {
       he: {
-        _dir: 'rtl',
-        title: 'סידור עבודה',
-        settings: 'הגדרות',
-        tip: 'העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).',
-        morning: 'בוקר',
-        evening: 'ערב',
-        weekdaysFull: ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
-        langToggle: 'עברית',
-        formatDate: (iso)=> new Date(iso).toLocaleDateString('he-IL'),
+        _dir:'rtl',
+        title:'סידור עבודה',
+        settings:'הגדרות',
+        tip:'העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).',
+        morning:'בוקר', evening:'ערב',
+        weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
+        langToggle:'עברית',
+        showBO:'להציג בק־אופיס',
+        fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
       },
       ru: {
-        _dir: 'ltr',
-        title: 'График смен',
-        settings: 'Настройки',
-        tip: 'Обновления делаются на странице настроек и сохраняются в браузере (localStorage).',
-        morning: 'Утро',
-        evening: 'Вечер',
-        weekdaysFull: ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
-        langToggle: 'Русский',
-        formatDate: (iso)=> new Date(iso).toLocaleDateString('ru-RU'),
+        _dir:'ltr',
+        title:'График смен',
+        settings:'Настройки',
+        tip:'Обновления делаются на странице настроек и сохраняются в браузере (localStorage).',
+        morning:'Утро', evening:'Вечер',
+        weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
+        langToggle:'Русский',
+        showBO:'Показывать Backoffice',
+        fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
       }
     };
-    function getLang(){ return localStorage.getItem('lang') || 'he'; }
-    function setLang(l){ localStorage.setItem('lang', l); applyLang(); render(); }
+    function getLang(){ return localStorage.getItem('lang')||'he'; }
+    function setLang(l){ localStorage.setItem('lang',l); applyLang(); render(); }
 
     function applyLang(){
       const L = I18N[getLang()];
-      document.documentElement.lang = getLang();
       document.documentElement.dir = L._dir;
+      document.documentElement.lang = getLang();
       document.getElementById('t_title').textContent = L.title;
       document.getElementById('t_settings').textContent = L.settings;
       document.getElementById('t_tip').textContent = L.tip;
-      document.getElementById('langToggle').textContent = L.langToggle === 'עברית' ? 'Русский' : 'עברית';
+      document.getElementById('t_showBO').textContent = L.showBO;
+      document.getElementById('langToggle').textContent = (getLang()==='he'?'Русский':'עברית');
     }
 
-    // data
-    function parseAnyDate(s){
-      // accepts ISO YYYY-MM-DD or DD.MM.YYYY
-      if(!s) return null;
-      if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-      const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      if(m){
-        const [_,d,mo,y] = m;
-        return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      }
-      const t = Date.parse(s); // fallback
-      if(!isNaN(t)){
-        const dt = new Date(t);
-        return dt.toISOString().slice(0,10);
-      }
-      return null;
+    // ===== data helpers =====
+    function loadDates(){
+      try{ const a=JSON.parse(localStorage.getItem('weekDates')||'[]'); if(Array.isArray(a)&&a.length===7) return a; }catch(e){}
+      // fallback: ближайшая неделя (вс-сб)
+      const now=new Date(); const delta=(now.getDay()+7-0)%7; const sun=new Date(now); sun.setDate(now.getDate()-delta);
+      return Array.from({length:7},(_,i)=>{ const d=new Date(sun); d.setDate(sun.getDate()+i); return d.toISOString().slice(0,10); });
     }
-    function loadData(){
-      let employees=[], weekDates=[];
-      try{ employees = JSON.parse(localStorage.getItem('employees')||'[]')||[] }catch(e){}
-      try{ weekDates = JSON.parse(localStorage.getItem('weekDates')||'[]')||[] }catch(e){}
-      // normalize to ISO
-      if(weekDates.length===7){
-        weekDates = weekDates.map(d=>parseAnyDate(d)||d);
-      }
-      // if missing, build upcoming Sunday..Saturday
-      if(weekDates.length!==7 || weekDates.some(x=>!x)){
-        const now = new Date();
-        const delta = (now.getDay()+7-0)%7; // to Sunday
-        const sunday = new Date(now); sunday.setDate(now.getDate()-delta);
-        weekDates = Array.from({length:7},(_,i)=>{ const d=new Date(sunday); d.setDate(sunday.getDate()+i); return d.toISOString().slice(0,10); });
-        localStorage.setItem('weekDates', JSON.stringify(weekDates));
-      }
-      return {employees, weekDates};
-    }
+    function loadEmployees(){ try{ const a=JSON.parse(localStorage.getItem('employees')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
 
+    // ===== build view =====
     function buildSchedule(employees){
-      const sched = Array.from({length:7}, ()=>({morning:[], evening:[]}));
+      const showBO = localStorage.getItem('showBackend')==='1';
+      const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
       for(const emp of employees){
+        if(!showBO && emp.backend) continue; // фильтр backoffice
         const name=(emp.name||'').trim(), shifts=emp.shifts||{};
         for(let i=0;i<7;i++){
           const d=shifts['d'+i]||{};
@@ -124,25 +109,26 @@
           if(d.e) sched[i].evening.push({name, time: d.timeE||''});
         }
       }
-      const lang=getLang();
+      const locale = getLang()==='he' ? 'he' : 'ru';
       for(const day of sched){
-        day.morning.sort((a,b)=>a.name.localeCompare(b.name, lang==='he'?'he':'ru'));
-        day.evening.sort((a,b)=>a.name.localeCompare(b.name, lang==='he'?'he':'ru'));
+        day.morning.sort((a,b)=>a.name.localeCompare(b.name,locale));
+        day.evening.sort((a,b)=>a.name.localeCompare(b.name,locale));
       }
       return sched;
     }
 
     function render(){
-      const L=I18N[getLang()];
-      const {employees, weekDates} = loadData();
-      const schedule = buildSchedule(employees);
+      const L = I18N[getLang()];
       const grid = document.getElementById('daysGrid'); grid.innerHTML='';
+      const dates = loadDates();
+      const employees = loadEmployees();
+      const schedule = buildSchedule(employees);
 
       for(let i=0;i<7;i++){
         const card=document.createElement('section'); card.className='day-card';
         const head=document.createElement('div'); head.className='day-head';
         const dow=document.createElement('div'); dow.className='dow'; dow.textContent=L.weekdaysFull[i];
-        const date=document.createElement('div'); date.className='date'; date.textContent=L.formatDate(weekDates[i]);
+        const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(dates[i]);
         head.appendChild(dow); head.appendChild(date);
 
         const secM=document.createElement('div'); secM.className='section'; secM.innerHTML=`<h3>${L.morning}</h3>`;
@@ -161,10 +147,12 @@
     }
 
     // init
-    document.getElementById('langToggle').addEventListener('click', (e)=>{
-      e.preventDefault();
-      setLang(getLang()==='he'?'ru':'he');
+    document.getElementById('showBO').checked = localStorage.getItem('showBackend')==='1';
+    document.getElementById('showBO').addEventListener('change',(e)=>{
+      localStorage.setItem('showBackend', e.target.checked ? '1' : '0');
+      render();
     });
+    document.getElementById('langToggle').addEventListener('click',(e)=>{e.preventDefault(); setLang(getLang()==='he'?'ru':'he');});
     applyLang(); render();
   </script>
 </body>
