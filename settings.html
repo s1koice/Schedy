@@ -7,7 +7,7 @@
   <style>
     :root{ --bg:#fafafa; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
-    header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px;flex-wrap:wrap}
     header h1{font-size:20px;margin:0}
     header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
@@ -18,7 +18,6 @@
     textarea{width:100%;min-height:260px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;direction:rtl}
     button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer}
     button.ghost{background:#eef4ff;color:#1a73e8}
-    /* те же карточки, что на главной */
     .grid{display:flex;gap:16px;padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
@@ -30,6 +29,10 @@
     [dir="rtl"] ol{padding-inline-start:22px}
     li{padding:2px 0}
     .empty{color:var(--muted);font-style:italic}
+    /* список сотрудников для backoffice */
+    .bo-list{display:grid;grid-template-columns:1fr auto;gap:8px;max-width:560px}
+    .bo-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+    .bo-item label{display:flex;align-items:center;gap:8px}
   </style>
 </head>
 <body>
@@ -49,7 +52,7 @@
         <div>
           <strong id="t_pasteTitle">הדבק כאן את הטקסט הגולמי של הסידור (כמו בקובץ)</strong>
           <div class="note" id="t_pasteNote">
-            נתמך: שורת תאריכים <code>dd-mm</code> ל‑7 ימים (למשל <em>17-08 … 23-08</em>), אחריה שורות עובדים עם משמרות
+            נתמך: שורת תאריכים <code>dd-mm</code> ל‑7 ימים (למשל 17-08 … 23-08), אחריה שורות עובדים עם משמרות
             (למשל <em>יורי 11-22</em>, <em>ארטיום 8-17</em>, <em>OFF</em>, <em>P</em>). אפשריות הערות אחרי הזמן.
           </div>
         </div>
@@ -62,7 +65,15 @@
       <textarea id="rawInput" placeholder="הדבק כאן את הסידור..."></textarea>
     </section>
 
-    <!-- Превью в том же виде, что главная -->
+    <!-- Фильтр Backoffice -->
+    <section class="card" id="boSection" style="display:none">
+      <div class="row">
+        <strong id="t_boTitle">Сотрудники: отметьте Backoffice/בק־אופיס (не попадут в списки)</strong>
+      </div>
+      <div id="boList" class="bo-list"></div>
+    </section>
+
+    <!-- Превью, как на главной -->
     <section class="card">
       <div class="row">
         <strong id="t_preview">תצוגה מקדימה (כמו בעמוד הראשי)</strong>
@@ -81,9 +92,11 @@
         pasteNote:'נתמך: שורת תאריכים dd-mm ל‑7 ימים (למשל 17-08 … 23-08), אחריה שורות עובדים עם משמרות (יורי 11-22, ארטיום 8-17, OFF, P). אפשריות הערות אחרי הזמן.',
         example:'דוגמה', parse:'פענוח + תצוגה', save:'שמירה',
         preview:'תצוגה מקדימה (כמו בעמוד הראשי)', previewNote:'לאחר שמירה, העמוד הראשי יתעדכן אוטומטית.',
+        boTitle:'עובדים: סמנו בק־אופיס (לא יוצגו ברשימות)',
         morning:'בוקר', evening:'ערב',
         weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
-        fmtDate:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
+        fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
+        lblBO:'בק־אופיס',
       },
       ru: {
         _dir:'ltr', title:'Настройки', back:'Назад к расписанию', lang:'עברית',
@@ -91,13 +104,16 @@
         pasteNote:'Поддерживается строка дат dd-mm (7 дней, например 17-08 … 23-08), затем строки сотрудников со сменами (Юри 11-22, Артём 8-17, OFF, P). Допустимы комментарии после времени.',
         example:'Пример', parse:'Разобрать + Просмотр', save:'Сохранить',
         preview:'Предпросмотр (как на главной)', previewNote:'После сохранения главная обновится автоматически.',
+        boTitle:'Сотрудники: отметьте Backoffice (не попадут в списки)',
         morning:'Утро', evening:'Вечер',
         weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
-        fmtDate:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
+        fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
+        lblBO:'Backoffice',
       }
     };
     function getLang(){ return localStorage.getItem('lang')||'he'; }
-    function setLang(l){ localStorage.setItem('lang',l); applyLang(); if(lastModel) renderPreview(lastModel); }
+    function setLang(l){ localStorage.setItem('lang',l); applyLang(); if(lastModel) { renderBO(lastModel); renderPreview(lastModel); } }
+
     function applyLang(){
       const L=I18N[getLang()];
       document.documentElement.dir=L._dir;
@@ -106,10 +122,11 @@
       t_pasteTitle.textContent=L.pasteTitle; t_pasteNote.innerHTML=L.pasteNote;
       btnExample.textContent=L.example; btnParse.textContent=L.parse; btnSave.textContent=L.save;
       t_preview.textContent=L.preview; t_previewNote.textContent=L.previewNote;
+      const boSec=document.getElementById('boSection'); if(boSec.style.display!=='none'){ t_boTitle.textContent=L.boTitle; }
     }
 
     // ===== helpers =====
-    const $ = sel => document.querySelector(sel);
+    const $ = s => document.querySelector(s);
     function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
     function normalizeTimeToken(tok){
       const m = tok.match(/(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/);
@@ -118,7 +135,7 @@
     function parseTimeRange(str){
       const m = normalizeTimeToken(str).match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
       if(!m) return null;
-      const [,h1,mi1,h2,mi2] = m; const sH=+h1, sM=mi1?+mi1:0, eH=+h2, eM=mi2?+mi2:0;
+      const [,h1,mi1,h2,mi2]=m; const sH=+h1, sM=mi1?+mi1:0, eH=+h2, eM=mi2?+mi2:0;
       return {start:sH+sM/60, end:eH+eM/60, text:`${sH}${sM?':'+String(sM).padStart(2,'0'):''}-${eH}${eM?':'+String(eM).padStart(2,'0'):''}`};
     }
     function assignShiftByTime(tr){
@@ -128,10 +145,10 @@
       return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
     }
 
-    // ===== parser =====
-    function buildWeekISOFromDDMM(ddmmArr){
-      const now=new Date(); const y=now.getFullYear();
-      return ddmmArr.map(s=>{ const [d,m]=s.split('-').map(n=>parseInt(n,10)); return toISO(y,m,d); });
+    // ===== parsing from raw =====
+    function buildWeekISOFromDDMM(ddmm){
+      const y=new Date().getFullYear();
+      return ddmm.map(s=>{ const [d,m]=s.split('-').map(v=>parseInt(v,10)); return toISO(y,m,d); });
     }
     function takeSevenTokens(tokens){
       const out=[]; let i=0;
@@ -139,58 +156,52 @@
         const t=tokens[i];
         if(/^off$/i.test(t) || /^p$/i.test(t)){ out.push(t.toUpperCase()); i++; continue; }
         if(/(\d{1,2}(?::?\d{0,2})?)-(\d{1,2}(?::?\d{0,2})?)/.test(t)){ out.push(normalizeTimeToken(t)); i++; continue; }
-        if(/^\d{1,2}$/.test(t)){ out.push(t); i++; continue; } // одиночное число — считаем «есть смена, без диапазона»
-        i++; // пропускаем служебные слова/категории
+        if(/^\d{1,2}$/.test(t)){ out.push(t); i++; continue; } // одиночная цифра — трактуем как присутствие
+        i++;
       }
       return out.length===7 ? out : null;
     }
-    function parseRawSchedule(raw){
-      // 1) ищем 7 дат dd-mm подряд
+    function parseRaw(raw){
       const tokens = Array.from(raw.matchAll(/\b(\d{1,2}-\d{1,2})\b/g)).map(m=>m[1]);
-      let datesDDMM=[];
+      let ddmm=[];
       for(let i=0;i+6<tokens.length;i++){
-        const slice=tokens.slice(i,i+7);
-        if(slice.every(s=>{ const [d,m]=s.split('-').map(Number); return d>=1&&d<=31&&m>=1&&m<=12; })){ datesDDMM=slice; break; }
+        const s=tokens.slice(i,i+7);
+        if(s.every(x=>{const [d,m]=x.split('-').map(Number); return d>=1&&d<=31&&m>=1&&m<=12;})){ ddmm=s; break; }
       }
-      if(datesDDMM.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
+      if(ddmm.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
 
-      // 2) читаем строки сотрудников: «Имя … 7 значений»
       const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      const employeeRows=[];
+      const rows=[];
       for(const line of lines){
-        // имя + хвост
         const m = line.match(/^([\p{L}\s׳״"'\-]+?)(?:\s{2,}|\s+)(.+)$/u);
         if(!m) continue;
         const name=m[1].trim(), tail=m[2].trim();
-        // отсекаем заголовки отделов (чтоб не ловить «Кондитерская», «Лоби» и т.п.)
-        if(name.length<=2 || /סגן|שף|טורנה|חם|קונדטוריה|לובי|חלבי|קצביה|אולם|מרקים|חמוצים|סדנת|סלטים|קבלת|קפה|אקסטרה/i.test(name)) continue;
-
+        if(name.length<=2 || /סגן|שף|טורנה|חם|קונדיטוריה|לובי|חלבי|קצביה|אולם|מרקים|חמוצים|סדנת|סלטים|קבלת|קפה|אקסטרה/i.test(name)) continue;
         const seven = takeSevenTokens(tail.split(/\s+/));
-        if(seven) employeeRows.push({ name, values: seven });
+        if(seven) rows.push({name, values: seven});
       }
 
-      // 3) в модель
-      const weekISO = buildWeekISOFromDDMM(datesDDMM);
-      const employees = employeeRows.map(row=>{
+      const weekISO = buildWeekISOFromDDMM(ddmm);
+      const employees = rows.map(r=>{
         const shifts={};
         for(let i=0;i<7;i++){
-          const cell=row.values[i];
+          const cell=r.values[i];
           if(!cell){ shifts['d'+i]={m:false,e:false,timeM:'',timeE:''}; continue; }
           if(/^OFF$/i.test(cell)){ shifts['d'+i]={m:false,e:false,timeM:'',timeE:''}; continue; }
           if(/^P$/i.test(cell)){ shifts['d'+i]={m:true,e:true,timeM:'',timeE:''}; continue; }
           const tr = parseTimeRange(cell);
-          if(tr){ shifts['d'+i]=assignShiftByTime(tr); }
-          else  { shifts['d'+i]={m:true,e:true,timeM:'',timeE:''}; } // одинокая «9» и т.п.
+          shifts['d'+i] = tr ? assignShiftByTime(tr) : {m:true,e:true,timeM:'',timeE:''};
         }
-        return { name: row.name, shifts };
+        return { name:r.name, backend:false, shifts };
       });
       return { weekISO, employees };
     }
 
-    // ===== preview (карточки 1в1 как на главной) =====
+    // ===== preview + BO editor =====
     function buildSchedule(employees){
-      const sched = Array.from({length:7},()=>({morning:[],evening:[]}));
+      const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
       for(const emp of employees){
+        if(emp.backend) continue; // скрываем backoffice в предпросмотре, как на главной по умолчанию
         const name=(emp.name||'').trim(), shifts=emp.shifts||{};
         for(let i=0;i<7;i++){
           const d=shifts['d'+i]||{};
@@ -200,22 +211,23 @@
       }
       const locale = getLang()==='he' ? 'he' : 'ru';
       for(const day of sched){
-        day.morning.sort((a,b)=>a.name.localeCompare(b.name, locale));
-        day.evening.sort((a,b)=>a.name.localeCompare(b.name, locale));
+        day.morning.sort((a,b)=>a.name.localeCompare(b.name,locale));
+        day.evening.sort((a,b)=>a.name.localeCompare(b.name,locale));
       }
       return sched;
     }
+
     function renderPreview(model){
       const L=I18N[getLang()];
-      const grid = $('#daysGrid'); grid.innerHTML='';
-      const schedule = buildSchedule(model.employees);
+      const grid=$('#daysGrid'); grid.innerHTML='';
       for(let i=0;i<7;i++){
         const card=document.createElement('section'); card.className='day-card';
         const head=document.createElement('div'); head.className='day-head';
         const dow=document.createElement('div'); dow.className='dow'; dow.textContent=L.weekdaysFull[i];
-        const date=document.createElement('div'); date.className='date'; date.textContent=L.fmtDate(model.weekISO[i]);
+        const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(model.weekISO[i]);
         head.appendChild(dow); head.appendChild(date);
 
+        const schedule = buildSchedule(model.employees);
         const secM=document.createElement('div'); secM.className='section'; secM.innerHTML=`<h3>${L.morning}</h3>`;
         const mList=schedule[i].morning;
         if(mList.length){ const ol=document.createElement('ol'); mList.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secM.appendChild(ol); }
@@ -231,9 +243,33 @@
       }
     }
 
+    function renderBO(model){
+      const L=I18N[getLang()];
+      const sec=document.getElementById('boSection'); sec.style.display='block';
+      document.getElementById('t_boTitle').textContent=L.boTitle;
+      const list=document.getElementById('boList'); list.innerHTML='';
+      // слить старые флаги backend из localStorage, если есть
+      let stored=[];
+      try{ stored=JSON.parse(localStorage.getItem('employees')||'[]')||[] }catch(e){}
+      const mapBO = new Map(stored.map(e=>[ (e.name||'').trim(), !!e.backend ]));
+
+      model.employees.forEach((emp, idx)=>{
+        if(mapBO.has((emp.name||'').trim())) emp.backend = mapBO.get((emp.name||'').trim());
+        const item=document.createElement('div'); item.className='bo-item';
+        const name=document.createElement('div'); name.textContent=emp.name;
+        const lab=document.createElement('label');
+        const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!emp.backend;
+        cb.addEventListener('change',()=>{ emp.backend=cb.checked; renderPreview(model); });
+        const span=document.createElement('span'); span.textContent=L.lblBO;
+        lab.appendChild(cb); lab.appendChild(span);
+        item.appendChild(name); item.appendChild(lab);
+        list.appendChild(item);
+      });
+    }
+
     // ===== events =====
     let lastModel=null;
-    langToggle.addEventListener('click', (e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
+    langToggle.addEventListener('click',(e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
     btnExample.addEventListener('click', ()=>{
       const sample = `
 תאריך
@@ -247,10 +283,18 @@
 `;
       rawInput.value = sample.trim();
     });
+
     btnParse.addEventListener('click', ()=>{
-      try{ lastModel = parseRawSchedule(rawInput.value||''); renderPreview(lastModel); }
-      catch(err){ alert('Ошибка разбора: '+err.message); }
+      try{
+        const model = parseRaw(rawInput.value||'');
+        lastModel = model;
+        renderBO(model);
+        renderPreview(model);
+      }catch(err){
+        alert('Ошибка разбора: '+err.message);
+      }
     });
+
     btnSave.addEventListener('click', ()=>{
       if(!lastModel){ alert('Сначала нажмите «Разобрать»'); return; }
       localStorage.setItem('weekDates', JSON.stringify(lastModel.weekISO));
