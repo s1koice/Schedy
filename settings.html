@@ -166,7 +166,7 @@
       // Утро — строго старт < 11:00
       const m = (tr.start < 11);
       // Вечер — если конец > 17:00 или старт >= 12:00
-      const e = (tr.end > 17) || (tr.start >= 12);
+      const e = (tr.end > 18) || (tr.start >= 12);
       return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
     }
 
