@@ -13,6 +13,9 @@
     .bar{height:1px;background:var(--line)}
     .controls{display:flex;gap:14px;align-items:center;padding:10px 20px;color:var(--muted);font-size:13px;flex-wrap:wrap}
     .chip{display:inline-flex;gap:6px;align-items:center}
+    .actions{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+    .btn{border:0;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer}
+    .btn.ghost{background:#eef4ff;color:#1a73e8}
     .grid{display:flex;gap:16px;padding:20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
@@ -20,17 +23,20 @@
     .day-head .date{color:var(--muted);font-size:14px}
     .section{margin-top:10px}
     .section h3{font-size:14px;margin:0 0 8px 0;color:#333;display:flex;align-items:center;justify-content:space-between}
-    ol{margin:0;padding-inline-start:18px}
-    [dir="rtl"] ol{padding-inline-start:22px}
+    /* список: просил “номер, имя, время” — рисуем номер в тексте */
+    ol{margin:0;padding:0;list-style:none}
     li{padding:2px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .li-text{flex:1}
+    .li-num{opacity:.7; min-width:2.4em}   /* номер */
     .empty{color:var(--muted);font-style:italic}
-    .btn{border:0;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer}
-    .btn.ghost{background:#eef4ff;color:#1a73e8}
     .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
     .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
     select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
     footer{padding:4px 20px 16px;color:var(--muted);font-size:12px}
   </style>
+
+  <!-- Библиотека для DOCX (UMD, без сборщика) -->
+  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
   <header>
@@ -51,6 +57,11 @@
       <input type="checkbox" id="editMode" />
       <span id="t_edit">Редактировать</span>
     </label>
+
+    <div class="actions">
+      <button class="btn ghost" id="btnTxt">Скачать TXT</button>
+      <button class="btn ghost" id="btnDocx">Скачать DOCX</button>
+    </div>
   </div>
 
   <main class="grid" id="daysGrid"></main>
@@ -72,6 +83,9 @@
         add:'הוספה', remove:'הסרה',
         timePH:'שעה',
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
+        btnTxt:'הורד TXT', btnDocx:'הורד DOCX',
+        labelMorning:(i)=>`בוקר`,
+        labelEvening:(i)=>`ערב`,
       },
       ru: {
         _dir:'ltr',
@@ -86,6 +100,9 @@
         add:'Добавить', remove:'Удалить',
         timePH:'Время',
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
+        btnTxt:'Скачать TXT', btnDocx:'Скачать DOCX',
+        labelMorning:(i)=>`Утро`,
+        labelEvening:(i)=>`Вечер`,
       }
     };
     function getLang(){ return localStorage.getItem('lang')||'he'; }
@@ -95,12 +112,14 @@
       const L = I18N[getLang()];
       document.documentElement.dir = L._dir;
       document.documentElement.lang = getLang();
-      document.getElementById('t_title').textContent = L.title;
-      document.getElementById('t_settings').textContent = L.settings;
-      document.getElementById('t_tip').textContent = L.tip;
-      document.getElementById('t_showBO').textContent = L.showBO;
-      document.getElementById('t_edit').textContent = L.edit;
-      document.getElementById('langToggle').textContent = (getLang()==='he'?'Русский':'עברית');
+      t_title.textContent = L.title;
+      t_settings.textContent = L.settings;
+      t_tip.textContent = L.tip;
+      t_showBO.textContent = L.showBO;
+      t_edit.textContent = L.edit;
+      langToggle.textContent = (getLang()==='he'?'Русский':'עברית');
+      btnTxt.textContent = L.btnTxt;
+      btnDocx.textContent = L.btnDocx;
     }
 
     // ===== data helpers =====
@@ -135,9 +154,8 @@
     }
 
     // mutate helpers for edit mode
-    function removeEntry(employees, empIndex, dayIndex, part){ // part: 'm'|'e'
-      const emp = employees[empIndex];
-      if(!emp || !emp.shifts) return;
+    function removeEntry(employees, empIndex, dayIndex, part){
+      const emp = employees[empIndex]; if(!emp || !emp.shifts) return;
       const key = 'd'+dayIndex;
       emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
       emp.shifts[key][part] = false;
@@ -146,8 +164,7 @@
       saveEmployees(employees);
     }
     function addEntry(employees, empIndex, dayIndex, part, timeText){
-      const emp = employees[empIndex];
-      if(!emp) return;
+      const emp = employees[empIndex]; if(!emp) return;
       const key = 'd'+dayIndex;
       emp.shifts = emp.shifts || {};
       emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
@@ -157,14 +174,13 @@
       saveEmployees(employees);
     }
 
-    // UI: add form row
+    // UI: add row
     function renderAddRow(container, employees, dayIndex, part){
       const L = I18N[getLang()];
       const row = document.createElement('div');
       row.className = 'addRow';
 
       const sel = document.createElement('select');
-      // список сотрудников (с учётом флага showBO)
       const showBO = localStorage.getItem('showBackend')==='1';
       employees.forEach((e, idx)=>{
         if(!showBO && e.backend) return;
@@ -183,7 +199,7 @@
       btn.onclick = ()=>{
         const empIndex = parseInt(sel.value,10);
         addEntry(employees, empIndex, dayIndex, part, time.value.trim());
-        render(); // перерисуем
+        render();
       };
 
       row.appendChild(sel);
@@ -213,10 +229,12 @@
         const mList=schedule[i].morning;
         if(mList.length){
           const ol=document.createElement('ol');
-          mList.forEach(p=>{
+          mList.forEach((p, idx)=>{
             const li=document.createElement('li');
-            const span=document.createElement('span'); span.textContent=p.time?`${p.name} — ${p.time}`:p.name;
-            li.appendChild(span);
+            const left=document.createElement('span'); left.className='li-text';
+            // формат: № Имя — Время
+            left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
+            li.appendChild(left);
             if(edit){
               const btn=document.createElement('button'); btn.className='btn icon'; btn.title=L.remove; btn.textContent='×';
               btn.onclick=()=>{ removeEntry(employees, p.empIndex, i, 'm'); render(); };
@@ -231,10 +249,7 @@
         if(edit){
           const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent=L.add;
           const addWrap=document.createElement('div');
-          addBtn.onclick=()=>{
-            addBtn.disabled=true;
-            renderAddRow(addWrap, employees, i, 'm');
-          };
+          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, employees, i, 'm'); };
           titleM.appendChild(addBtn);
           secM.appendChild(addWrap);
         }
@@ -245,10 +260,11 @@
         const eList=schedule[i].evening;
         if(eList.length){
           const ol=document.createElement('ol');
-          eList.forEach(p=>{
+          eList.forEach((p, idx)=>{
             const li=document.createElement('li');
-            const span=document.createElement('span'); span.textContent=p.time?`${p.name} — ${p.time}`:p.name;
-            li.appendChild(span);
+            const left=document.createElement('span'); left.className='li-text';
+            left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
+            li.appendChild(left);
             if(edit){
               const btn=document.createElement('button'); btn.className='btn icon'; btn.title=L.remove; btn.textContent='×';
               btn.onclick=()=>{ removeEntry(employees, p.empIndex, i, 'e'); render(); };
@@ -263,10 +279,7 @@
         if(edit){
           const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent=L.add;
           const addWrap=document.createElement('div');
-          addBtn.onclick=()=>{
-            addBtn.disabled=true;
-            renderAddRow(addWrap, employees, i, 'e');
-          };
+          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, employees, i, 'e'); };
           titleE.appendChild(addBtn);
           secE.appendChild(addWrap);
         }
@@ -275,6 +288,91 @@
         grid.appendChild(card);
       }
     }
+
+    // ===== экспорт =====
+    function buildExportLines(){
+      const L = I18N[getLang()];
+      const dates = loadDates();
+      const employees = loadEmployees();
+      const schedule = buildSchedule(employees);
+
+      const lines = [];
+      for(let i=0;i<7;i++){
+        lines.push(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`);
+        // Утро
+        lines.push(`${L.labelMorning(i)}:`);
+        if(schedule[i].morning.length){
+          schedule[i].morning.forEach((p, idx)=>{
+            lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+          });
+        } else { lines.push('—'); }
+        // Вечер
+        lines.push(`${L.labelEvening(i)}:`);
+        if(schedule[i].evening.length){
+          schedule[i].evening.forEach((p, idx)=>{
+            lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+          });
+        } else { lines.push('—'); }
+        lines.push(''); // пустая строка между днями
+      }
+      return lines;
+    }
+
+    function downloadBlob(str, mime, filename){
+      const blob = new Blob([str], {type: mime});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      a.remove(); URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('btnTxt').addEventListener('click', ()=>{
+      const lines = buildExportLines();
+      downloadBlob(lines.join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
+    });
+
+    document.getElementById('btnDocx').addEventListener('click', async ()=>{
+      const L = I18N[getLang()];
+      const lines = buildExportLines();
+
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = window.docx;
+      const children = [];
+
+      // Заголовок
+      children.push(new Paragraph({
+        text: L.title,
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER
+      }));
+
+      // Текст
+      let buffer = [];
+      const flush = ()=>{
+        if(!buffer.length) return;
+        children.push(new Paragraph(buffer.map(t=>new TextRun(t))));
+        buffer = [];
+      };
+
+      // Собираем по строкам: пустая строка = новый Paragraph
+      for(const line of lines){
+        if(line.trim()===''){
+          flush();
+          children.push(new Paragraph(''));
+        } else {
+          buffer.push(line+'\n');
+        }
+      }
+      flush();
+
+      const doc = new Document({ sections:[{properties:{}, children}] });
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'schedule.docx';
+      document.body.appendChild(a); a.click();
+      a.remove(); URL.revokeObjectURL(url);
+    });
 
     // init
     document.getElementById('showBO').checked = localStorage.getItem('showBackend')==='1';
@@ -287,4 +385,4 @@
     applyLang(); render();
   </script>
 </body>
-</html>
+</html
