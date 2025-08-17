@@ -33,10 +33,17 @@
     .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
     select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
     footer{padding:4px 20px 16px;color:var(--muted);font-size:12px}
+
+    /* панель выбора дней */
+    .day-picker{display:flex;align-items:center;gap:8px;padding:8px 20px;flex-wrap:wrap}
+    .day-picker .badge{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px}
+    .day-picker .label{font-size:13px;color:#333}
   </style>
 
   <!-- Библиотека для DOCX -->
   <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <!-- HTML → PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
   <header>
@@ -59,10 +66,14 @@
     </label>
 
     <div class="actions">
-      <button class="btn ghost" id="btnTxt">Скачать TXT</button>
-      <button class="btn ghost" id="btnDocx">Скачать DOCX</button>
+      <button class="btn ghost" id="btnTxt">TXT</button>
+      <button class="btn ghost" id="btnDocx">DOCX</button>
+      <button class="btn ghost" id="btnPdf">PDF</button>
     </div>
   </div>
+
+  <!-- выбор дней для экспорта -->
+  <div class="day-picker" id="dayPicker"></div>
 
   <main class="grid" id="daysGrid"></main>
   <footer id="t_tip">העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).</footer>
@@ -83,9 +94,11 @@
         add:'הוספה', remove:'הסרה',
         timePH:'שעה',
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
-        btnTxt:'הורד TXT', btnDocx:'הורד DOCX',
+        btnTxt:'TXT', btnDocx:'DOCX', btnPdf:'PDF',
         labelMorning:(i)=>`בוקר`,
         labelEvening:(i)=>`ערב`,
+        chooseDays:'בחר ימים לייצוא',
+        all:'הכול',
       },
       ru: {
         _dir:'ltr',
@@ -100,13 +113,15 @@
         add:'Добавить', remove:'Удалить',
         timePH:'Время',
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
-        btnTxt:'Скачать TXT', btnDocx:'Скачать DOCX',
+        btnTxt:'TXT', btnDocx:'DOCX', btnPdf:'PDF',
         labelMorning:(i)=>`Утро`,
         labelEvening:(i)=>`Вечер`,
+        chooseDays:'Выберите дни для экспорта',
+        all:'Все',
       }
     };
     function getLang(){ return localStorage.getItem('lang')||'he'; }
-    function setLang(l){ localStorage.setItem('lang',l); applyLang(); render(); }
+    function setLang(l){ localStorage.setItem('lang',l); applyLang(); render(); renderDayPicker(); }
 
     function applyLang(){
       const L = I18N[getLang()];
@@ -120,6 +135,7 @@
       langToggle.textContent = (getLang()==='he'?'Русский':'עברית');
       btnTxt.textContent = L.btnTxt;
       btnDocx.textContent = L.btnDocx;
+      btnPdf.textContent = L.btnPdf;
     }
 
     // ===== data helpers =====
@@ -130,6 +146,51 @@
     }
     function loadEmployees(){ try{ const a=JSON.parse(localStorage.getItem('employees')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
     function saveEmployees(list){ localStorage.setItem('employees', JSON.stringify(list)); }
+
+    // ===== выбор дней для экспорта =====
+    function loadExportDays(){
+      try{ const a=JSON.parse(localStorage.getItem('exportDays')||'[]'); if(Array.isArray(a)&&a.length===7) return a.map(Boolean); }catch(e){}
+      return [true,true,true,true,true,true,true];
+    }
+    function saveExportDays(arr){ localStorage.setItem('exportDays', JSON.stringify(arr)); }
+    function selectedDayIndices(){
+      const arr = loadExportDays();
+      const idx = [];
+      for(let i=0;i<7;i++) if(arr[i]) idx.push(i);
+      return idx;
+    }
+
+    function renderDayPicker(){
+      const L = I18N[getLang()];
+      const wrap = document.getElementById('dayPicker');
+      wrap.innerHTML = '';
+
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.textContent = L.chooseDays + ':';
+      wrap.appendChild(label);
+
+      const arr = loadExportDays();
+      // чекбоксы дней
+      for(let i=0;i<7;i++){
+        const badge = document.createElement('label');
+        badge.className = 'badge';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = arr[i];
+        cb.addEventListener('change', ()=>{ arr[i] = cb.checked; saveExportDays(arr); });
+        const txt = document.createElement('span');
+        txt.textContent = I18N[getLang()].weekdaysFull[i];
+        badge.appendChild(cb); badge.appendChild(txt);
+        wrap.appendChild(badge);
+      }
+
+      // «все»
+      const allB = document.createElement('button');
+      allB.className = 'btn ghost';
+      allB.textContent = L.all;
+      allB.onclick = ()=>{ saveExportDays([true,true,true,true,true,true,true]); renderDayPicker(); };
+      wrap.appendChild(allB);
+    }
 
     // ===== core builders =====
     function buildSchedule(employees){
@@ -216,8 +277,10 @@
       const schedule = buildSchedule(employees);
       const edit = document.getElementById('editMode').checked;
 
+      const exportIdx = selectedDayIndices(); // показать все, но отметим для PDF позже
+
       for(let i=0;i<7;i++){
-        const card=document.createElement('section'); card.className='day-card';
+        const card=document.createElement('section'); card.className='day-card'; card.dataset.dayindex = i;
         const head=document.createElement('div'); head.className='day-head';
         const dow=document.createElement('div'); dow.className='dow'; dow.textContent=L.weekdaysFull[i];
         const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(dates[i]);
@@ -283,20 +346,19 @@
           secE.appendChild(addWrap);
         }
 
-        card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
       }
     }
 
-    // ===== экспорт TXT =====
-    function buildExportLines(){
+    // ===== экспорт TXT (с учётом выбранных дней) =====
+    function buildExportLines(selectedIdx){
       const L = I18N[getLang()];
       const dates = loadDates();
       const employees = loadEmployees();
       const schedule = buildSchedule(employees);
 
       const lines = [];
-      for(let i=0;i<7;i++){
+      for(const i of selectedIdx){
         lines.push(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`);
         // Утро
         lines.push(`${L.labelMorning(i)}:`);
@@ -327,11 +389,11 @@
     }
 
     document.getElementById('btnTxt').addEventListener('click', ()=>{
-      const lines = buildExportLines();
+      const lines = buildExportLines(selectedDayIndices());
       downloadBlob(lines.join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
     });
 
-    // ===== экспорт DOCX (красиво: таблица "Утро | Вечер" на день) =====
+    // ===== DOCX (двухколоночные таблицы) с учётом выбранных дней =====
     function makeDayTable(docxNS, L, dayData, isRTL){
       const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, ShadingType, BorderStyle } = docxNS;
 
@@ -369,45 +431,37 @@
     document.getElementById('btnDocx').addEventListener('click', async ()=>{
       const L = I18N[getLang()];
       const isRTL = (getLang()==='he');
+      const selIdx = selectedDayIndices();
 
       const dates = loadDates();
       const employees = loadEmployees();
       const schedule = buildSchedule(employees);
 
-      const {
-        Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation
-      } = window.docx;
-
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation } = window.docx;
       const children = [];
 
-      // Заголовок
-      children.push(
-        new Paragraph({
-          children: [ new TextRun(L.title) ],
-          heading: HeadingLevel.HEADING_1,
-          alignment: AlignmentType.CENTER
-        })
-      );
+      children.push(new Paragraph({
+        children: [ new TextRun(L.title) ],
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER
+      }));
 
-      // Дни: подзаголовок + таблица
-      for (let i = 0; i < 7; i++) {
-        children.push(
-          new Paragraph({
-            children: [ new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`) ],
-            heading: HeadingLevel.HEADING_2,
-            alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT,
-          })
-        );
+      for (const i of selIdx) {
+        children.push(new Paragraph({
+          children: [ new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`) ],
+          heading: HeadingLevel.HEADING_2,
+          alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT,
+        }));
         children.push( makeDayTable(window.docx, L, schedule[i], isRTL) );
-        children.push(new Paragraph({ children:[ new TextRun('') ] })); // отступ
+        children.push(new Paragraph({ children:[ new TextRun('') ] }));
       }
 
       const doc = new Document({
         sections: [{
           properties: {
             page: {
-              size: { width: 11906, height: 16838, orientation: PageOrientation.PORTRAIT }, /* A4 */
-              margin: { top: 720, right: 720, bottom: 720, left: 720 } /* 1" */
+              size: { width: 11906, height: 16838, orientation: PageOrientation.PORTRAIT },
+              margin: { top: 720, right: 720, bottom: 720, left: 720 }
             }
           },
           children
@@ -422,6 +476,81 @@
       a.remove(); URL.revokeObjectURL(url);
     });
 
+    // ===== PDF (html2pdf) — экспортируются только выбранные дни =====
+    document.getElementById('btnPdf').addEventListener('click', ()=>{
+      // соберём временную «печатаемую» область с выбранными днями
+      const selIdx = selectedDayIndices();
+      const L = I18N[getLang()];
+      const dates = loadDates();
+
+      const employees = loadEmployees();
+      const schedule = buildSchedule(employees);
+
+      const container = document.createElement('div');
+      container.style.padding = '16px';
+      container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+      container.dir = (getLang()==='he') ? 'rtl' : 'ltr';
+
+      const title = document.createElement('h1');
+      title.textContent = L.title;
+      title.style.textAlign = 'center';
+      title.style.margin = '0 0 16px 0';
+      container.appendChild(title);
+
+      selIdx.forEach(i=>{
+        const block = document.createElement('div');
+        block.style.border = '1px solid #e6e6e6';
+        block.style.borderRadius = '10px';
+        block.style.padding = '12px';
+        block.style.marginBottom = '12px';
+        block.style.background = '#fff';
+
+        const h2 = document.createElement('h2');
+        h2.textContent = `${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`;
+        h2.style.margin = '0 0 8px 0';
+        block.appendChild(h2);
+
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th style="text-align:${getLang()==='he'?'right':'left'};background:#eef4ff;border:1px solid #dde3ea;padding:6px 8px;">${L.morning}</th>
+              <th style="text-align:${getLang()==='he'?'right':'left'};background:#eef4ff;border:1px solid #dde3ea;padding:6px 8px;">${L.evening}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="vertical-align:top;border:1px solid #e8edf3;padding:6px 8px;"></td>
+              <td style="vertical-align:top;border:1px solid #e8edf3;padding:6px 8px;"></td>
+            </tr>
+          </tbody>
+        `;
+        const tds = table.querySelectorAll('td');
+
+        const mLines = schedule[i].morning.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+        const eLines = schedule[i].evening.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+
+        tds[0].innerHTML = mLines.length ? mLines.map(l=>`<div>${l}</div>`).join('') : `<div style="color:#999">—</div>`;
+        tds[1].innerHTML = eLines.length ? eLines.map(l=>`<div>${l}</div>`).join('') : `<div style="color:#999">—</div>`;
+
+        block.appendChild(table);
+        container.appendChild(block);
+      });
+
+      const opt = {
+        margin:       10,               // мм
+        filename:     'schedule.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      html2pdf().set(opt).from(container).save();
+    });
+
     // init
     document.getElementById('showBO').checked = localStorage.getItem('showBackend')==='1';
     document.getElementById('showBO').addEventListener('change',(e)=>{
@@ -430,7 +559,7 @@
     });
     document.getElementById('editMode').addEventListener('change', render);
     document.getElementById('langToggle').addEventListener('click',(e)=>{e.preventDefault(); setLang(getLang()==='he'?'ru':'he');});
-    applyLang(); render();
+    applyLang(); render(); renderDayPicker();
   </script>
 </body>
 </html>
