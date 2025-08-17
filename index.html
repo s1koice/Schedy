@@ -192,12 +192,23 @@
       wrap.appendChild(allB);
     }
 
+    // ===== безопасная сортировка (fix для iOS/Safari локалей) =====
+    function safeSortByName(arr){
+      const lang = getLang()==='he' ? 'he-IL' : 'ru-RU';
+      try{
+        arr.sort((a,b)=>a.name.localeCompare(b.name, lang));
+      }catch(e){
+        arr.sort((a,b)=>a.name.localeCompare(b.name));
+      }
+    }
+
     // ===== core builders =====
     function buildSchedule(employees){
       const showBO = localStorage.getItem('showBackend')==='1';
       const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
       for(let empIndex=0; empIndex<employees.length; empIndex++){
         const emp = employees[empIndex];
+        if(!emp) continue;
         if(!showBO && emp.backend) continue;
         const name=(emp.name||'').trim(), shifts=emp.shifts||{};
         for(let i=0;i<7;i++){
@@ -206,10 +217,9 @@
           if(d.e) sched[i].evening.push({name, time: d.timeE||'', empIndex});
         }
       }
-      const locale = getLang()==='he' ? 'he' : 'ru';
       for(const day of sched){
-        day.morning.sort((a,b)=>a.name.localeCompare(b.name,locale));
-        day.evening.sort((a,b)=>a.name.localeCompare(b.name,locale));
+        safeSortByName(day.morning);
+        safeSortByName(day.evening);
       }
       return sched;
     }
@@ -244,6 +254,7 @@
       const sel = document.createElement('select');
       const showBO = localStorage.getItem('showBackend')==='1';
       employees.forEach((e, idx)=>{
+        if(!e) return;
         if(!showBO && e.backend) return;
         const opt = document.createElement('option');
         opt.value = String(idx);
@@ -277,7 +288,16 @@
       const schedule = buildSchedule(employees);
       const edit = document.getElementById('editMode').checked;
 
-      const exportIdx = selectedDayIndices(); // показать все, но отметим для PDF позже
+      if(!employees.length){
+        const empty = document.createElement('div');
+        empty.style.padding='20px';
+        empty.style.color='#666';
+        empty.textContent = (getLang()==='he')
+          ? 'אין נתונים להצגה. פתחו את דף ההגדרות ושמרו סידור.'
+          : 'Нет данных. Откройте «Настройки» и сохраните расписание.';
+        grid.appendChild(empty);
+        return;
+      }
 
       for(let i=0;i<7;i++){
         const card=document.createElement('section'); card.className='day-card'; card.dataset.dayindex = i;
@@ -346,11 +366,12 @@
           secE.appendChild(addWrap);
         }
 
+        card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
       }
     }
 
-    // ===== экспорт TXT (с учётом выбранных дней) =====
+    // ===== экспорт TXT =====
     function buildExportLines(selectedIdx){
       const L = I18N[getLang()];
       const dates = loadDates();
@@ -360,19 +381,13 @@
       const lines = [];
       for(const i of selectedIdx){
         lines.push(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`);
-        // Утро
         lines.push(`${L.labelMorning(i)}:`);
         if(schedule[i].morning.length){
-          schedule[i].morning.forEach((p, idx)=>{
-            lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-          });
+          schedule[i].morning.forEach((p, idx)=> lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`));
         } else { lines.push('—'); }
-        // Вечер
         lines.push(`${L.labelEvening(i)}:`);
         if(schedule[i].evening.length){
-          schedule[i].evening.forEach((p, idx)=>{
-            lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-          });
+          schedule[i].evening.forEach((p, idx)=> lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`));
         } else { lines.push('—'); }
         lines.push('');
       }
@@ -478,17 +493,18 @@
 
     // ===== PDF (html2pdf) — экспортируются только выбранные дни =====
     document.getElementById('btnPdf').addEventListener('click', ()=>{
-      // соберём временную «печатаемую» область с выбранными днями
       const selIdx = selectedDayIndices();
       const L = I18N[getLang()];
       const dates = loadDates();
-
       const employees = loadEmployees();
       const schedule = buildSchedule(employees);
 
+      // печатный контейнер (flex вместо <table>, явный line-height)
       const container = document.createElement('div');
       container.style.padding = '16px';
       container.style.fontFamily = 'Arial, Helvetica, sans-serif';
+      container.style.fontSize = '12pt';
+      container.style.lineHeight = '1.4';
       container.dir = (getLang()==='he') ? 'rtl' : 'ltr';
 
       const title = document.createElement('h1');
@@ -510,37 +526,54 @@
         h2.style.margin = '0 0 8px 0';
         block.appendChild(h2);
 
-        const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.innerHTML = `
-          <thead>
-            <tr>
-              <th style="text-align:${getLang()==='he'?'right':'left'};background:#eef4ff;border:1px solid #dde3ea;padding:6px 8px;">${L.morning}</th>
-              <th style="text-align:${getLang()==='he'?'right':'left'};background:#eef4ff;border:1px solid #dde3ea;padding:6px 8px;">${L.evening}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="vertical-align:top;border:1px solid #e8edf3;padding:6px 8px;"></td>
-              <td style="vertical-align:top;border:1px solid #e8edf3;padding:6px 8px;"></td>
-            </tr>
-          </tbody>
-        `;
-        const tds = table.querySelectorAll('td');
+        const twoCol = document.createElement('div');
+        twoCol.style.display = 'flex';
+        twoCol.style.gap = '12px';
+
+        const col = (titleTxt, items)=>{
+          const c = document.createElement('div');
+          c.style.flex = '1';
+          const th = document.createElement('div');
+          th.textContent = titleTxt;
+          th.style.background = '#eef4ff';
+          th.style.border = '1px solid #dde3ea';
+          th.style.padding = '6px 8px';
+          th.style.fontWeight = '700';
+          c.appendChild(th);
+
+          const body = document.createElement('div');
+          body.style.border = '1px solid #e8edf3';
+          body.style.padding = '6px 8px';
+          if(items.length){
+            items.forEach(txt=>{
+              const line = document.createElement('div');
+              line.textContent = txt;
+              line.style.margin = '2px 0';
+              line.style.whiteSpace = 'pre-wrap';
+              body.appendChild(line);
+            });
+          } else {
+            const empty = document.createElement('div');
+            empty.textContent = '—';
+            empty.style.color = '#999';
+            body.appendChild(empty);
+          }
+          c.appendChild(body);
+          return c;
+        };
 
         const mLines = schedule[i].morning.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
         const eLines = schedule[i].evening.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
 
-        tds[0].innerHTML = mLines.length ? mLines.map(l=>`<div>${l}</div>`).join('') : `<div style="color:#999">—</div>`;
-        tds[1].innerHTML = eLines.length ? eLines.map(l=>`<div>${l}</div>`).join('') : `<div style="color:#999">—</div>`;
+        twoCol.appendChild(col(L.morning, mLines));
+        twoCol.appendChild(col(L.evening, eLines));
 
-        block.appendChild(table);
+        block.appendChild(twoCol);
         container.appendChild(block);
       });
 
       const opt = {
-        margin:       10,               // мм
+        margin:       10,
         filename:     'schedule.pdf',
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
