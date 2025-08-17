@@ -288,7 +288,7 @@
       }
     }
 
-    // ===== экспорт =====
+    // ===== экспорт TXT =====
     function buildExportLines(){
       const L = I18N[getLang()];
       const dates = loadDates();
@@ -331,14 +331,53 @@
       downloadBlob(lines.join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
     });
 
-    // Исправленный DOCX экспорт (каждая строка — отдельный параграф)
+    // ===== экспорт DOCX (красиво: таблица "Утро | Вечер" на день) =====
+    function makeDayTable(docxNS, L, dayData, isRTL){
+      const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, ShadingType, BorderStyle } = docxNS;
+
+      const cellHdr = (text)=> new TableCell({
+        children: [ new Paragraph({ children:[ new TextRun({ text, bold:true }) ], alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT, bidirectional:isRTL }) ],
+        shading: { type: ShadingType.CLEAR, color: "FFFFFF", fill: "EEF4FF" },
+        margins: { top:120, bottom:120, left:180, right:180 }
+      });
+
+      const cellList = (items)=> new TableCell({
+        children: items.length ? items.map((line)=> new Paragraph({ children:[ new TextRun(line) ], alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT, bidirectional:isRTL }))
+                               : [ new Paragraph({ children:[ new TextRun("—") ], alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT, bidirectional:isRTL }) ],
+        margins: { top:120, bottom:120, left:180, right:180 }
+      });
+
+      const headerRow = new TableRow({ children: [ cellHdr(L.morning), cellHdr(L.evening) ] });
+      const mLines = dayData.morning.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+      const eLines = dayData.evening.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+      const listRow = new TableRow({ children: [ cellList(mLines), cellList(eLines) ] });
+
+      return new Table({
+        rows: [headerRow, listRow],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top:   { style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
+          bottom:{ style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
+          left:  { style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
+          right: { style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
+          insideH: { style: BorderStyle.SINGLE, size: 4, color: "E8EDF3" },
+          insideV: { style: BorderStyle.SINGLE, size: 4, color: "E8EDF3" },
+        }
+      });
+    }
+
     document.getElementById('btnDocx').addEventListener('click', async ()=>{
       const L = I18N[getLang()];
+      const isRTL = (getLang()==='he');
+
       const dates = loadDates();
       const employees = loadEmployees();
       const schedule = buildSchedule(employees);
 
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = window.docx;
+      const {
+        Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation
+      } = window.docx;
+
       const children = [];
 
       // Заголовок
@@ -350,43 +389,32 @@
         })
       );
 
-      // По дням
+      // Дни: подзаголовок + таблица
       for (let i = 0; i < 7; i++) {
-        // День
         children.push(
           new Paragraph({
             children: [ new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`) ],
-            heading: HeadingLevel.HEADING_2
+            heading: HeadingLevel.HEADING_2,
+            alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT,
           })
         );
-
-        // Утро
-        children.push(new Paragraph({ children: [ new TextRun(`${L.morning}:`) ] }));
-        if (schedule[i].morning.length) {
-          schedule[i].morning.forEach((p, idx) => {
-            children.push(new Paragraph({ children: [ new TextRun(`${idx+1}. ${p.name}${p.time ? ` — ${p.time}` : ''}`) ] }));
-          });
-        } else {
-          children.push(new Paragraph({ children: [ new TextRun('—') ] }));
-        }
-
-        // Вечер
-        children.push(new Paragraph({ children: [ new TextRun(`${L.evening}:`) ] }));
-        if (schedule[i].evening.length) {
-          schedule[i].evening.forEach((p, idx) => {
-            children.push(new Paragraph({ children: [ new TextRun(`${idx+1}. ${p.name}${p.time ? ` — ${p.time}` : ''}`) ] }));
-          });
-        } else {
-          children.push(new Paragraph({ children: [ new TextRun('—') ] }));
-        }
-
-        // Пустая строка
-        children.push(new Paragraph({ children: [ new TextRun('') ] }));
+        children.push( makeDayTable(window.docx, L, schedule[i], isRTL) );
+        children.push(new Paragraph({ children:[ new TextRun('') ] })); // отступ
       }
 
-      const doc = new Document({ sections: [{ properties: {}, children }] });
-      const blob = await Packer.toBlob(doc);
+      const doc = new Document({
+        sections: [{
+          properties: {
+            page: {
+              size: { width: 11906, height: 16838, orientation: PageOrientation.PORTRAIT }, /* A4 */
+              margin: { top: 720, right: 720, bottom: 720, left: 720 } /* 1" */
+            }
+          },
+          children
+        }]
+      });
 
+      const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = 'schedule.docx';
