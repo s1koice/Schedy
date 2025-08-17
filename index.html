@@ -23,11 +23,11 @@
     .day-head .date{color:var(--muted);font-size:14px}
     .section{margin-top:10px}
     .section h3{font-size:14px;margin:0 0 8px 0;color:#333;display:flex;align-items:center;justify-content:space-between}
-    /* список: просил “номер, имя, время” — рисуем номер в тексте */
+    /* список: «№, имя — время» */
     ol{margin:0;padding:0;list-style:none}
     li{padding:2px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
     .li-text{flex:1}
-    .li-num{opacity:.7; min-width:2.4em}   /* номер */
+    .li-num{opacity:.7; min-width:2.4em}
     .empty{color:var(--muted);font-style:italic}
     .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
     .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
@@ -35,7 +35,7 @@
     footer{padding:4px 20px 16px;color:var(--muted);font-size:12px}
   </style>
 
-  <!-- Библиотека для DOCX (UMD, без сборщика) -->
+  <!-- Библиотека для DOCX -->
   <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 </head>
 <body>
@@ -153,7 +153,7 @@
       return sched;
     }
 
-    // mutate helpers for edit mode
+    // mutate helpers (edit mode)
     function removeEntry(employees, empIndex, dayIndex, part){
       const emp = employees[empIndex]; if(!emp || !emp.shifts) return;
       const key = 'd'+dayIndex;
@@ -174,7 +174,7 @@
       saveEmployees(employees);
     }
 
-    // UI: add row
+    // UI: add row builder
     function renderAddRow(container, employees, dayIndex, part){
       const L = I18N[getLang()];
       const row = document.createElement('div');
@@ -232,7 +232,6 @@
           mList.forEach((p, idx)=>{
             const li=document.createElement('li');
             const left=document.createElement('span'); left.className='li-text';
-            // формат: № Имя — Время
             left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
             li.appendChild(left);
             if(edit){
@@ -313,7 +312,7 @@
             lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
           });
         } else { lines.push('—'); }
-        lines.push(''); // пустая строка между днями
+        lines.push('');
       }
       return lines;
     }
@@ -332,41 +331,62 @@
       downloadBlob(lines.join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
     });
 
+    // Исправленный DOCX экспорт (каждая строка — отдельный параграф)
     document.getElementById('btnDocx').addEventListener('click', async ()=>{
       const L = I18N[getLang()];
-      const lines = buildExportLines();
+      const dates = loadDates();
+      const employees = loadEmployees();
+      const schedule = buildSchedule(employees);
 
       const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = window.docx;
       const children = [];
 
       // Заголовок
-      children.push(new Paragraph({
-        text: L.title,
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER
-      }));
+      children.push(
+        new Paragraph({
+          children: [ new TextRun(L.title) ],
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER
+        })
+      );
 
-      // Текст
-      let buffer = [];
-      const flush = ()=>{
-        if(!buffer.length) return;
-        children.push(new Paragraph(buffer.map(t=>new TextRun(t))));
-        buffer = [];
-      };
+      // По дням
+      for (let i = 0; i < 7; i++) {
+        // День
+        children.push(
+          new Paragraph({
+            children: [ new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`) ],
+            heading: HeadingLevel.HEADING_2
+          })
+        );
 
-      // Собираем по строкам: пустая строка = новый Paragraph
-      for(const line of lines){
-        if(line.trim()===''){
-          flush();
-          children.push(new Paragraph(''));
+        // Утро
+        children.push(new Paragraph({ children: [ new TextRun(`${L.morning}:`) ] }));
+        if (schedule[i].morning.length) {
+          schedule[i].morning.forEach((p, idx) => {
+            children.push(new Paragraph({ children: [ new TextRun(`${idx+1}. ${p.name}${p.time ? ` — ${p.time}` : ''}`) ] }));
+          });
         } else {
-          buffer.push(line+'\n');
+          children.push(new Paragraph({ children: [ new TextRun('—') ] }));
         }
-      }
-      flush();
 
-      const doc = new Document({ sections:[{properties:{}, children}] });
+        // Вечер
+        children.push(new Paragraph({ children: [ new TextRun(`${L.evening}:`) ] }));
+        if (schedule[i].evening.length) {
+          schedule[i].evening.forEach((p, idx) => {
+            children.push(new Paragraph({ children: [ new TextRun(`${idx+1}. ${p.name}${p.time ? ` — ${p.time}` : ''}`) ] }));
+          });
+        } else {
+          children.push(new Paragraph({ children: [ new TextRun('—') ] }));
+        }
+
+        // Пустая строка
+        children.push(new Paragraph({ children: [ new TextRun('') ] }));
+      }
+
+      const doc = new Document({ sections: [{ properties: {}, children }] });
       const blob = await Packer.toBlob(doc);
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = 'schedule.docx';
@@ -385,4 +405,4 @@
     applyLang(); render();
   </script>
 </body>
-</html
+</html>
