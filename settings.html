@@ -18,6 +18,7 @@
     textarea{width:100%;min-height:260px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;direction:rtl}
     button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer}
     button.ghost{background:#eef4ff;color:#1a73e8}
+    button.warn{background:#ffcdd2;color:#b71c1c}
     .grid{display:flex;gap:16px;padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
@@ -33,6 +34,8 @@
     .bo-list{display:grid;grid-template-columns:1fr auto;gap:8px;max-width:560px}
     .bo-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
     .bo-item label{display:flex;align-items:center;gap:8px}
+    .cloud-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .hidden{display:none !important;}
   </style>
 </head>
 <body>
@@ -52,23 +55,27 @@
         <div>
           <strong id="t_pasteTitle">הדבק כאן את הטקסט הגולמי של הסידור (כמו בקובץ)</strong>
           <div class="note" id="t_pasteNote">
-            נתמך: שורת תאריכים <code>dd-mm</code> ל‑7 ימים (למשל 17-08 … 23-08), אחריה שורות עובדים עם משמרות
+            נתמך: שורת תאריכים <code>dd-mm</code> ל-7 ימים (למשל 17-08 … 23-08), אחריה שורות עובדים עם משמרות
             (למשל <em>יורי 11-22</em>, <em>ארטיום 8-17</em>, <em>OFF</em>, <em>P</em>). אפשריות הערות אחרי הזמן.
           </div>
         </div>
-        <div>
+        <div class="cloud-actions">
           <button class="ghost" id="btnExample">דוגמה</button>
           <button class="ghost" id="btnParse">פענוח + תצוגה</button>
-          <button id="btnSave">שמירה</button>
+          <button id="btnSaveLocal">שמירה במכשיר</button>
+          <button class="hidden" id="btnCloudLoad">Загрузить из облака</button>
+          <button class="hidden" id="btnCloudSave">Сохранить в облако</button>
         </div>
       </div>
       <textarea id="rawInput" placeholder="הדבק כאן את הסידור..."></textarea>
+      <div class="note" id="t_morningRule" style="margin-top:8px"></div>
     </section>
 
     <!-- Фильтр Backoffice -->
     <section class="card" id="boSection" style="display:none">
       <div class="row">
         <strong id="t_boTitle">Сотрудники: отметьте Backoffice/בק־אופיס (не попадут в списки)</strong>
+        <button class="ghost" id="btnToggleBOPreview">Показывать Backoffice в предпросмотре</button>
       </div>
       <div id="boList" class="bo-list"></div>
     </section>
@@ -89,30 +96,38 @@
       he: {
         _dir:'rtl', title:'הגדרות', back:'חזרה לסידור', lang:'Русский',
         pasteTitle:'הדבק כאן את הטקסט הגולמי של הסידור (כמו בקובץ)',
-        pasteNote:'נתמך: שורת תאריכים dd-mm ל‑7 ימים (למשל 17-08 … 23-08), אחריה שורות עובדים עם משמרות (יורי 11-22, ארטיום 8-17, OFF, P). אפשריות הערות אחרי הזמן.',
-        example:'דוגמה', parse:'פענוח + תצוגה', save:'שמירה',
+        pasteNote:'נתמך: שורת תאריכים dd-mm ל-7 ימים (למשל 17-08 … 23-08), אחריה שורות עובדים עם משמרות (יורי 11-22, ארטיום 8-17, OFF, P). אפשריות הערות אחרי הזמן.',
+        example:'דוגמה', parse:'פענוח + תצוגה', saveLocal:'שמירה במכשיר',
         preview:'תצוגה מקדימה (כמו בעמוד הראשי)', previewNote:'לאחר שמירה, העמוד הראשי יתעדכן אוטומטית.',
         boTitle:'עובדים: סמנו בק־אופיס (לא יוצגו ברשימות)',
         morning:'בוקר', evening:'ערב',
         weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
         lblBO:'בק־אופיס',
+        boToggle:'הצג בק־אופיס בתצוגה',
+        cloudLoad:'Загрузить из облака',
+        cloudSave:'Сохранить в облако',
+        morningRule:'כללים: משמרת בוקר רק אם ההתחלה לפני 11:00. מ-11:00 ומעלה — לא נחשב בוקר.',
       },
       ru: {
         _dir:'ltr', title:'Настройки', back:'Назад к расписанию', lang:'עברית',
         pasteTitle:'Вставьте сюда сырой текст графика (как в файле)',
         pasteNote:'Поддерживается строка дат dd-mm (7 дней, например 17-08 … 23-08), затем строки сотрудников со сменами (Юри 11-22, Артём 8-17, OFF, P). Допустимы комментарии после времени.',
-        example:'Пример', parse:'Разобрать + Просмотр', save:'Сохранить',
+        example:'Пример', parse:'Разобрать + Просмотр', saveLocal:'Сохранить на устройстве',
         preview:'Предпросмотр (как на главной)', previewNote:'После сохранения главная обновится автоматически.',
         boTitle:'Сотрудники: отметьте Backoffice (не попадут в списки)',
         morning:'Утро', evening:'Вечер',
         weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
         lblBO:'Backoffice',
+        boToggle:'Показывать Backoffice в предпросмотре',
+        cloudLoad:'Загрузить из облака',
+        cloudSave:'Сохранить в облако',
+        morningRule:'Правило: «утро» только если начало раньше 11:00. С 11:00 и позже — не считается утро.',
       }
     };
     function getLang(){ return localStorage.getItem('lang')||'he'; }
-    function setLang(l){ localStorage.setItem('lang',l); applyLang(); if(lastModel) { renderBO(lastModel); renderPreview(lastModel); } }
+    function setLang(l){ localStorage.setItem('lang',l); applyLang(); if(lastModel){ renderBO(lastModel); renderPreview(lastModel); } }
 
     function applyLang(){
       const L=I18N[getLang()];
@@ -120,9 +135,15 @@
       document.documentElement.lang=getLang();
       t_title.textContent=L.title; t_back.textContent=L.back; langToggle.textContent=L.lang;
       t_pasteTitle.textContent=L.pasteTitle; t_pasteNote.innerHTML=L.pasteNote;
-      btnExample.textContent=L.example; btnParse.textContent=L.parse; btnSave.textContent=L.save;
+      btnExample.textContent=L.example; btnParse.textContent=L.parse; btnSaveLocal.textContent=L.saveLocal;
       t_preview.textContent=L.preview; t_previewNote.textContent=L.previewNote;
       const boSec=document.getElementById('boSection'); if(boSec.style.display!=='none'){ t_boTitle.textContent=L.boTitle; }
+      btnToggleBOPreview.textContent = L.boToggle;
+      document.getElementById('t_morningRule').textContent = L.morningRule;
+
+      // кнопки облака (если видны)
+      if(!btnCloudLoad.classList.contains('hidden')) btnCloudLoad.textContent = L.cloudLoad;
+      if(!btnCloudSave.classList.contains('hidden')) btnCloudSave.textContent = L.cloudSave;
     }
 
     // ===== helpers =====
@@ -135,12 +156,16 @@
     function parseTimeRange(str){
       const m = normalizeTimeToken(str).match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
       if(!m) return null;
-      const [,h1,mi1,h2,mi2]=m; const sH=+h1, sM=mi1?+mi1:0, eH=+h2, eM=mi2?+mi2:0;
+      const [,h1,mi1,h2,mi2] = m; const sH=+h1, sM=mi1?+mi1:0, eH=+h2, eM=mi2?+mi2:0;
       return {start:sH+sM/60, end:eH+eM/60, text:`${sH}${sM?':'+String(sM).padStart(2,'0'):''}-${eH}${eM?':'+String(eM).padStart(2,'0'):''}`};
     }
+
+    // ВАЖНО: новое правило распределения
     function assignShiftByTime(tr){
       if(!tr) return {m:false,e:false,timeM:'',timeE:''};
-      const m = (tr.start < 12);
+      // Утро — строго старт < 11:00
+      const m = (tr.start < 11);
+      // Вечер — если конец > 17:00 или старт >= 12:00
       const e = (tr.end > 17) || (tr.start >= 12);
       return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
     }
@@ -198,10 +223,12 @@
     }
 
     // ===== preview + BO editor =====
+    let showBOInPreview = false;
+
     function buildSchedule(employees){
       const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
       for(const emp of employees){
-        if(emp.backend) continue; // скрываем backoffice в предпросмотре, как на главной по умолчанию
+        if(!showBOInPreview && emp.backend) continue; // скрываем backoffice в предпросмотре по умолчанию
         const name=(emp.name||'').trim(), shifts=emp.shifts||{};
         for(let i=0;i<7;i++){
           const d=shifts['d'+i]||{};
@@ -220,6 +247,8 @@
     function renderPreview(model){
       const L=I18N[getLang()];
       const grid=$('#daysGrid'); grid.innerHTML='';
+      const schedule = buildSchedule(model.employees);
+
       for(let i=0;i<7;i++){
         const card=document.createElement('section'); card.className='day-card';
         const head=document.createElement('div'); head.className='day-head';
@@ -227,12 +256,13 @@
         const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(model.weekISO[i]);
         head.appendChild(dow); head.appendChild(date);
 
-        const schedule = buildSchedule(model.employees);
+        // morning
         const secM=document.createElement('div'); secM.className='section'; secM.innerHTML=`<h3>${L.morning}</h3>`;
         const mList=schedule[i].morning;
         if(mList.length){ const ol=document.createElement('ol'); mList.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secM.appendChild(ol); }
         else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
 
+        // evening
         const secE=document.createElement('div'); secE.className='section'; secE.innerHTML=`<h3>${L.evening}</h3>`;
         const eList=schedule[i].evening;
         if(eList.length){ const ol=document.createElement('ol'); eList.forEach(p=>{ const li=document.createElement('li'); li.textContent=p.time?`${p.name} — ${p.time}`:p.name; ol.appendChild(li); }); secE.appendChild(ol); }
@@ -248,12 +278,12 @@
       const sec=document.getElementById('boSection'); sec.style.display='block';
       document.getElementById('t_boTitle').textContent=L.boTitle;
       const list=document.getElementById('boList'); list.innerHTML='';
-      // слить старые флаги backend из localStorage, если есть
+      // слить старые флаги backend из localStorage/облака, если есть
       let stored=[];
       try{ stored=JSON.parse(localStorage.getItem('employees')||'[]')||[] }catch(e){}
       const mapBO = new Map(stored.map(e=>[ (e.name||'').trim(), !!e.backend ]));
 
-      model.employees.forEach((emp, idx)=>{
+      model.employees.forEach((emp)=>{
         if(mapBO.has((emp.name||'').trim())) emp.backend = mapBO.get((emp.name||'').trim());
         const item=document.createElement('div'); item.className='bo-item';
         const name=document.createElement('div'); name.textContent=emp.name;
@@ -267,9 +297,53 @@
       });
     }
 
+    // ===== migration (однократно подчистить старые "утро" с 11:00+) =====
+    function parseStoredRangeToStartHour(s){
+      if(!s) return NaN;
+      const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?-/);
+      if(!m) return NaN;
+      const h = +m[1]; const mi = m[2] ? +m[2] : 0;
+      return h + mi/60;
+    }
+    function fixOldMorningBugInLocalStorage(){
+      let employees;
+      try{ employees = JSON.parse(localStorage.getItem('employees')||'[]'); }catch(e){ employees = []; }
+      if(!Array.isArray(employees) || !employees.length) return;
+      let changed = false;
+      for(const emp of employees){
+        if(!emp || !emp.shifts) continue;
+        for(let i=0;i<7;i++){
+          const d = emp.shifts['d'+i];
+          if(!d || !d.m) continue;
+          const start = parseStoredRangeToStartHour(d.timeM || d.timeE || '');
+          if(!isNaN(start) && start >= 11){
+            d.m = false;
+            d.timeM = '';
+            changed = true;
+          }
+        }
+      }
+      if(changed){
+        localStorage.setItem('employees', JSON.stringify(employees));
+      }
+    }
+
+    // ===== cloud (опционально). Кнопки покажутся, если есть firebase.*
+    const hasFirebase = typeof window.firebase !== 'undefined' && firebase.apps && (firebase.apps.length || true);
+    (function initCloudButtons(){
+      // покажем кнопки, только если определены cloudLoad/cloudSave
+      const show = (typeof window.cloudLoad === 'function') && (typeof window.cloudSave === 'function');
+      if(show){
+        btnCloudLoad.classList.remove('hidden');
+        btnCloudSave.classList.remove('hidden');
+      }
+    })();
+
     // ===== events =====
     let lastModel=null;
+
     langToggle.addEventListener('click',(e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
+
     btnExample.addEventListener('click', ()=>{
       const sample = `
 תאריך
@@ -295,15 +369,59 @@
       }
     });
 
-    btnSave.addEventListener('click', ()=>{
+    btnSaveLocal.addEventListener('click', ()=>{
       if(!lastModel){ alert('Сначала нажмите «Разобрать»'); return; }
       localStorage.setItem('weekDates', JSON.stringify(lastModel.weekISO));
       localStorage.setItem('employees', JSON.stringify(lastModel.employees));
-      alert('Сохранено ✓ — откройте главную.');
+      alert('Сохранено локально ✓ — откройте главную.');
+    });
+
+    // Кнопки облака — только если есть соответствующие функции
+    if(typeof window.cloudLoad === 'function'){
+      btnCloudLoad.addEventListener('click', async ()=>{
+        try{
+          const data = await cloudLoad();
+          if(!data){ alert('В облаке пока пусто. Сохраните сначала.'); return; }
+          localStorage.setItem('weekDates', JSON.stringify(data.weekDates||[]));
+          localStorage.setItem('employees', JSON.stringify(data.employees||[]));
+          lastModel = { weekISO: data.weekDates||[], employees: data.employees||[] };
+          renderBO(lastModel); renderPreview(lastModel);
+          alert('Загружено из облака ✓');
+        }catch(e){ alert('Ошибка загрузки из облака: '+e.message); }
+      });
+    }
+    if(typeof window.cloudSave === 'function'){
+      btnCloudSave.addEventListener('click', async ()=>{
+        try{
+          if(!lastModel){
+            const weekDates = JSON.parse(localStorage.getItem('weekDates')||'[]');
+            const employees = JSON.parse(localStorage.getItem('employees')||'[]');
+            await cloudSave({ weekDates, employees });
+          } else {
+            await cloudSave({ weekDates: lastModel.weekISO, employees: lastModel.employees });
+          }
+          alert('Сохранено в облаке ✓');
+        }catch(e){ alert('Ошибка сохранения в облако: '+e.message); }
+      });
+    }
+
+    // Переключатель «показывать бэк-офис в предпросмотре»
+    btnToggleBOPreview.addEventListener('click', ()=>{
+      showBOInPreview = !showBOInPreview;
+      btnToggleBOPreview.classList.toggle('warn', showBOInPreview);
+      if(lastModel) renderPreview(lastModel);
     });
 
     // init
     applyLang();
+    fixOldMorningBugInLocalStorage(); // однократно чистим старые «11:00 в утро», если такие остались
   </script>
+
+  <!--
+    ПРИМЕЧАНИЕ ПО FIREBASE:
+    Если ты уже вставил SDK в этой странице (app-compat, auth-compat, firestore-compat) и объявил
+    функции cloudLoad()/cloudSave() как раньше, кнопки облака станут видны автоматически.
+    Если SDK нет — просто игнорируй, локальное сохранение работает.
+  -->
 </body>
 </html>
