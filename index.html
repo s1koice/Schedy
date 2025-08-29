@@ -2,7 +2,7 @@
 <html lang="he">
 <head>
   <meta charset="utf-8" />
-  <title>סידור עבודה – ראשי</title>
+  <title>סידור עבודה – DOCX גרסה</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
@@ -11,302 +11,276 @@
     header h1{font-size:20px;margin:0}
     header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
-    .controls{display:flex;gap:14px;align-items:center;padding:10px 20px;color:var(--muted);font-size:13px;flex-wrap:wrap}
-    .chip{display:inline-flex;gap:6px;align-items:center}
-    .actions{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
-    .btn{border:0;border-radius:10px;padding:7px 12px;font-size:13px;cursor:pointer}
+    .wrap{padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .note{color:var(--muted);font-size:12px}
+    .btn{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer}
     .btn.ghost{background:#eef4ff;color:#1a73e8}
-    .grid{display:flex;gap:16px;padding:20px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    input[type="file"]{display:none}
+    .filelabel{display:inline-flex;align-items:center;gap:10px;border:1px dashed var(--line);padding:10px 14px;border-radius:12px;background:#fff;cursor:pointer}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .grid{display:flex;gap:16px;padding:16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
     .day-head .dow{font-weight:700}
     .day-head .date{color:var(--muted);font-size:14px}
     .section{margin-top:10px}
     .section h3{font-size:14px;margin:0 0 8px 0;color:#333;display:flex;align-items:center;justify-content:space-between}
-    /* список: «№, имя — время» */
     ol{margin:0;padding:0;list-style:none}
     li{padding:2px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
     .li-text{flex:1}
     .li-num{opacity:.7; min-width:2.4em}
     .empty{color:var(--muted);font-style:italic}
-    .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
-    .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
-    select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
-    footer{padding:4px 20px 16px;color:var(--muted);font-size:12px}
-
-    /* панель выбора дней */
-    .day-picker{display:flex;align-items:center;gap:8px;padding:8px 20px;flex-wrap:wrap}
-    .day-picker .badge{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px}
-    .day-picker .label{font-size:13px;color:#333}
+    select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
+    .picker,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .badge{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px}
   </style>
 
-  <!-- Библиотека для DOCX -->
+  <!-- DOCX → text -->
+  <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <!-- DOCX export -->
   <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
   <!-- HTML → PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
   <header>
-    <h1 id="t_title">סידור עבודה</h1>
+    <h1 id="t_title">סידור עבודה (DOCX)</h1>
     <nav>
-      <a id="t_settings" href="settings.html">הגדרות</a>
       <a href="#" id="langToggle">Русский</a>
     </nav>
   </header>
   <div class="bar"></div>
 
-  <div class="controls">
-    <label class="chip">
-      <input type="checkbox" id="showBO" />
-      <span id="t_showBO">Показывать Backoffice</span>
-    </label>
-    <label class="chip">
-      <input type="checkbox" id="editMode" />
-      <span id="t_edit">Редактировать</span>
-    </label>
+  <main class="wrap">
+    <section class="card">
+      <div class="row">
+        <label class="filelabel" for="docxInput" id="t_uploadLabel">בחר/ите DOCX עם графиком</label>
+        <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <div class="controls">
+          <label class="badge"><input type="checkbox" id="showBO" /> <span id="t_showBO">להציג בק־אופיס</span></label>
+          <label class="badge"><input type="checkbox" id="editMode" /> <span id="t_edit">עריכה</span></label>
+          <button class="btn ghost" id="btnSaveLocal">שמירה במכשיר</button>
+        </div>
+      </div>
+      <div class="note" id="t_hint">
+        פורמט: שורת 7 תאריכים dd-mm (למשל 17-08 ... 23-08), ואז שורות עובדים עם 7 תאים (OFF / P / 8-17 / 9:00-21:00 ...). בוקר = התחלה לפני 11:00.
+      </div>
+    </section>
 
-    <div class="actions">
-      <button class="btn ghost" id="btnTxt">TXT</button>
-      <button class="btn ghost" id="btnDocx">DOCX</button>
-      <button class="btn ghost" id="btnPdf">PDF</button>
-    </div>
-  </div>
-
-  <!-- выбор дней для экспорта -->
-  <div class="day-picker" id="dayPicker"></div>
-
-  <main class="grid" id="daysGrid"></main>
-  <footer id="t_tip">העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).</footer>
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <div class="picker" id="dayPicker"></div>
+        <div class="actions">
+          <button class="btn ghost" id="btnTxt">TXT</button>
+          <button class="btn ghost" id="btnDocx">DOCX</button>
+          <button class="btn ghost" id="btnPdf">PDF</button>
+        </div>
+      </div>
+      <div class="grid" id="daysGrid"></div>
+    </section>
+  </main>
 
   <script>
     // ===== i18n =====
     const I18N = {
       he: {
         _dir:'rtl',
-        title:'סידור עבודה',
-        settings:'הגדרות',
-        tip:'העדכונים נעשים בדף הגדרות ונשמרים בדפדפן (localStorage).',
-        morning:'בוקר', evening:'ערב',
-        weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
-        langToggle:'עברית',
+        title:'סידור עבודה (DOCX)',
+        upload:'בחר קובץ DOCX',
         showBO:'להציג בק־אופיס',
         edit:'עריכה',
-        add:'הוספה', remove:'הסרה',
-        timePH:'שעה',
+        hint:'פורמט: שורת 7 תאריכים dd-mm (למשל 17-08 ... 23-08), ואז שורות עובדים עם 7 תאים (OFF / P / 8-17 / 9:00-21:00 ...). בוקר = התחלה לפני 11:00.',
+        morning:'בוקר', evening:'ערב',
+        weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
-        btnTxt:'TXT', btnDocx:'DOCX', btnPdf:'PDF',
-        labelMorning:(i)=>`בוקר`,
-        labelEvening:(i)=>`ערב`,
-        chooseDays:'בחר ימים לייצוא',
+        chooseDays:'בחר ימים',
         all:'הכול',
+        saveLocal:'שמירה במכשיר',
+        txt:'TXT', docx:'DOCX', pdf:'PDF',
+        noData:'אין נתונים להצגה. העלו קובץ DOCX.',
       },
       ru: {
         _dir:'ltr',
-        title:'График смен',
-        settings:'Настройки',
-        tip:'Обновления делаются на странице настроек и сохраняются в браузере (localStorage).',
-        morning:'Утро', evening:'Вечер',
-        weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
-        langToggle:'Русский',
+        title:'График (DOCX)',
+        upload:'Выберите DOCX',
         showBO:'Показывать Backoffice',
         edit:'Редактировать',
-        add:'Добавить', remove:'Удалить',
-        timePH:'Время',
+        hint:'Формат: строка 7 дат dd-mm (например 17-08 ... 23-08), затем строки сотрудников с 7 ячейками (OFF / P / 8-17 / 9:00-21:00 ...). Утро = начало раньше 11:00.',
+        morning:'Утро', evening:'Вечер',
+        weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
-        btnTxt:'TXT', btnDocx:'DOCX', btnPdf:'PDF',
-        labelMorning:(i)=>`Утро`,
-        labelEvening:(i)=>`Вечер`,
-        chooseDays:'Выберите дни для экспорта',
+        chooseDays:'Выберите дни',
         all:'Все',
+        saveLocal:'Сохранить на устройстве',
+        txt:'TXT', docx:'DOCX', pdf:'PDF',
+        noData:'Нет данных. Загрузите DOCX.',
       }
     };
     function getLang(){ return localStorage.getItem('lang')||'he'; }
     function setLang(l){ localStorage.setItem('lang',l); applyLang(); render(); renderDayPicker(); }
-
     function applyLang(){
-      const L = I18N[getLang()];
-      document.documentElement.dir = L._dir;
-      document.documentElement.lang = getLang();
-      t_title.textContent = L.title;
-      t_settings.textContent = L.settings;
-      t_tip.textContent = L.tip;
-      t_showBO.textContent = L.showBO;
-      t_edit.textContent = L.edit;
-      langToggle.textContent = (getLang()==='he'?'Русский':'עברית');
-      btnTxt.textContent = L.btnTxt;
-      btnDocx.textContent = L.btnDocx;
-      btnPdf.textContent = L.btnPdf;
+      const L=I18N[getLang()];
+      document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
+      t_title.textContent=L.title;
+      t_uploadLabel.textContent=L.upload;
+      t_showBO.textContent=L.showBO;
+      t_edit.textContent=L.edit;
+      t_hint.textContent=L.hint;
+      btnSaveLocal.textContent=L.saveLocal;
+      btnTxt.textContent=L.txt; btnDocx.textContent=L.docx; btnPdf.textContent=L.pdf;
+      langToggle.textContent=(getLang()==='he'?'Русский':'עברית');
     }
 
-    // ===== data helpers =====
-    function loadDates(){
-      try{ const a=JSON.parse(localStorage.getItem('weekDates')||'[]'); if(Array.isArray(a)&&a.length===7) return a; }catch(e){}
-      const now=new Date(); const delta=(now.getDay()+7-0)%7; const sun=new Date(now); sun.setDate(now.getDate()-delta);
-      return Array.from({length:7},(_,i)=>{ const d=new Date(sun); d.setDate(sun.getDate()+i); return d.toISOString().slice(0,10); });
+    // ===== state =====
+    let weekISO = [];      // [ 'YYYY-MM-DD' x7 ]
+    let employees = [];    // [ { name, backend:false, shifts:{d0..d6:{m,e,timeM,timeE}} } ]
+    let exportDays = [true,true,true,true,true,true,true];
+
+    // ===== helpers =====
+    const $=s=>document.querySelector(s);
+    function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+
+    function normalizeTimeToken(tok){
+      const m = tok.match(/(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/);
+      return m ? m[0] : tok;
     }
-    function loadEmployees(){ try{ const a=JSON.parse(localStorage.getItem('employees')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
-    function saveEmployees(list){ localStorage.setItem('employees', JSON.stringify(list)); }
-
-    // ===== выбор дней для экспорта =====
-    function loadExportDays(){
-      try{ const a=JSON.parse(localStorage.getItem('exportDays')||'[]'); if(Array.isArray(a)&&a.length===7) return a.map(Boolean); }catch(e){}
-      return [true,true,true,true,true,true,true];
+    function parseTimeRange(str){
+      const m = normalizeTimeToken(str).match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
+      if(!m) return null;
+      const [,h1,mi1,h2,mi2] = m; const sH=+h1, sM=mi1?+mi1:0, eH=+h2, eM=mi2?+mi2:0;
+      return {start:sH+sM/60, end:eH+eM/60, text:`${sH}${sM?':'+String(sM).padStart(2,'0'):''}-${eH}${eM?':'+String(eM).padStart(2,'0'):''}`};
     }
-    function saveExportDays(arr){ localStorage.setItem('exportDays', JSON.stringify(arr)); }
-    function selectedDayIndices(){
-      const arr = loadExportDays();
-      const idx = [];
-      for(let i=0;i<7;i++) if(arr[i]) idx.push(i);
-      return idx;
-    }
-
-    function renderDayPicker(){
-      const L = I18N[getLang()];
-      const wrap = document.getElementById('dayPicker');
-      wrap.innerHTML = '';
-
-      const label = document.createElement('span');
-      label.className = 'label';
-      label.textContent = L.chooseDays + ':';
-      wrap.appendChild(label);
-
-      const arr = loadExportDays();
-      // чекбоксы дней
-      for(let i=0;i<7;i++){
-        const badge = document.createElement('label');
-        badge.className = 'badge';
-        const cb = document.createElement('input');
-        cb.type = 'checkbox'; cb.checked = arr[i];
-        cb.addEventListener('change', ()=>{ arr[i] = cb.checked; saveExportDays(arr); });
-        const txt = document.createElement('span');
-        txt.textContent = I18N[getLang()].weekdaysFull[i];
-        badge.appendChild(cb); badge.appendChild(txt);
-        wrap.appendChild(badge);
-      }
-
-      // «все»
-      const allB = document.createElement('button');
-      allB.className = 'btn ghost';
-      allB.textContent = L.all;
-      allB.onclick = ()=>{ saveExportDays([true,true,true,true,true,true,true]); renderDayPicker(); };
-      wrap.appendChild(allB);
+    function assignShiftByTime(tr){
+      if(!tr) return {m:false,e:false,timeM:'',timeE:''};
+      const m = (tr.start < 11); // утро — строго раньше 11:00
+      const e = (tr.end > 17) || (tr.start >= 12); // вечер — понимаем типовые 9-21/10-22/11-22 …
+      return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
     }
 
-    // ===== безопасная сортировка (fix для iOS/Safari локалей) =====
     function safeSortByName(arr){
       const lang = getLang()==='he' ? 'he-IL' : 'ru-RU';
-      try{
-        arr.sort((a,b)=>a.name.localeCompare(b.name, lang));
-      }catch(e){
-        arr.sort((a,b)=>a.name.localeCompare(b.name));
-      }
+      try{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'', lang)); }
+      catch{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
     }
 
-    // ===== core builders =====
-    function buildSchedule(employees){
-      const showBO = localStorage.getItem('showBackend')==='1';
+    // ===== parse DOCX (mammoth) =====
+    async function extractTextFromDocx(file){
+      const arrayBuffer = await file.arrayBuffer();
+      const { value } = await window.mammoth.extractRawText({ arrayBuffer });
+      // mammoth даёт текст с переводами строк и табами
+      return value.replace(/\u000b/g,'\n'); // вертикальные табы → \n
+    }
+
+    function findWeekDDMM(text){
+      const tokens = Array.from(text.matchAll(/\b(\d{1,2}-\d{1,2})\b/g)).map(m=>m[1]);
+      for(let i=0;i+6<tokens.length;i++){
+        const s=tokens.slice(i,i+7);
+        if(s.every(x=>{const [d,m]=x.split('-').map(Number); return d>=1&&d<=31&&m>=1&&m<=12;})) return s;
+      }
+      return [];
+    }
+
+    function buildWeekISOFromDDMM(ddmm){
+      const y=new Date().getFullYear();
+      return ddmm.map(s=>{ const [d,m]=s.split('-').map(v=>parseInt(v,10)); return toISO(y,m,d); });
+    }
+
+    function takeSevenTokens(arr){
+      const out=[]; let i=0;
+      while(i<arr.length && out.length<7){
+        const t=arr[i];
+        if(/^off$/i.test(t)||/^p$/i.test(t)){ out.push(t.toUpperCase()); i++; continue; }
+        if(/(\d{1,2}(?::?\d{0,2})?)-(\d{1,2}(?::?\d{0,2})?)/.test(t)){ out.push(normalizeTimeToken(t)); i++; continue; }
+        if(/^\d{1,2}$/.test(t)){ out.push(t); i++; continue; } // допускаем одиночные числа как «присутствие»
+        i++;
+      }
+      return out.length===7 ? out : null;
+    }
+
+    function parseModelFromRawText(raw){
+      // 1) 7 дат
+      const ddmm = findWeekDDMM(raw);
+      if(ddmm.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
+      weekISO = buildWeekISOFromDDMM(ddmm);
+
+      // 2) строки сотрудника: «Имя ... 7 токенов»
+      const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const rows=[];
+      for(const line of lines){
+        // имя (буквы/пробелы/кавычки) + пробелы + Хвост
+        const m = line.match(/^([\p{L}\s׳״"'\-]+?)(?:\s{2,}|\s+)(.+)$/u);
+        if(!m) continue;
+        const name=m[1].trim(), tail=m[2].trim();
+        if(name.length<2) continue;
+        const seven = takeSevenTokens(tail.split(/\s+|\t+/));
+        if(seven) rows.push({name, values: seven});
+      }
+
+      employees = rows.map(r=>{
+        const shifts={};
+        for(let i=0;i<7;i++){
+          const cell=r.values[i];
+          if(!cell){ shifts['d'+i]={m:false,e:false,timeM:'',timeE:''}; continue; }
+          if(/^OFF$/i.test(cell)){ shifts['d'+i]={m:false,e:false,timeM:'',timeE:''}; continue; }
+          if(/^P$/i.test(cell)){ shifts['d'+i]={m:true,e:true,timeM:'',timeE:''}; continue; }
+          const tr = parseTimeRange(cell);
+          shifts['d'+i] = tr ? assignShiftByTime(tr) : {m:true,e:true,timeM:'',timeE:''};
+        }
+        return { name:r.name, backend:false, shifts };
+      });
+    }
+
+    // ===== schedule build + render =====
+    function buildSchedule(){
+      const showBO = $('#showBO').checked;
       const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
       for(let empIndex=0; empIndex<employees.length; empIndex++){
-        const emp = employees[empIndex];
-        if(!emp) continue;
+        const emp = employees[empIndex]; if(!emp) continue;
         if(!showBO && emp.backend) continue;
-        const name=(emp.name||'').trim(), shifts=emp.shifts||{};
+        const name=(emp.name||'').trim();
         for(let i=0;i<7;i++){
-          const d=shifts['d'+i]||{};
+          const d=emp.shifts['d'+i]||{};
           if(d.m) sched[i].morning.push({name, time: d.timeM||'', empIndex});
           if(d.e) sched[i].evening.push({name, time: d.timeE||'', empIndex});
         }
       }
-      for(const day of sched){
-        safeSortByName(day.morning);
-        safeSortByName(day.evening);
-      }
+      for(const day of sched){ safeSortByName(day.morning); safeSortByName(day.evening); }
       return sched;
     }
 
-    // mutate helpers (edit mode)
-    function removeEntry(employees, empIndex, dayIndex, part){
-      const emp = employees[empIndex]; if(!emp || !emp.shifts) return;
-      const key = 'd'+dayIndex;
-      emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
-      emp.shifts[key][part] = false;
-      if(part==='m') emp.shifts[key].timeM = '';
-      if(part==='e') emp.shifts[key].timeE = '';
-      saveEmployees(employees);
-    }
-    function addEntry(employees, empIndex, dayIndex, part, timeText){
-      const emp = employees[empIndex]; if(!emp) return;
-      const key = 'd'+dayIndex;
-      emp.shifts = emp.shifts || {};
-      emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
-      emp.shifts[key][part] = true;
-      if(part==='m') emp.shifts[key].timeM = timeText||'';
-      if(part==='e') emp.shifts[key].timeE = timeText||'';
-      saveEmployees(employees);
-    }
-
-    // UI: add row builder
-    function renderAddRow(container, employees, dayIndex, part){
-      const L = I18N[getLang()];
-      const row = document.createElement('div');
-      row.className = 'addRow';
-
-      const sel = document.createElement('select');
-      const showBO = localStorage.getItem('showBackend')==='1';
-      employees.forEach((e, idx)=>{
-        if(!e) return;
-        if(!showBO && e.backend) return;
-        const opt = document.createElement('option');
-        opt.value = String(idx);
-        opt.textContent = e.name || ('#'+(idx+1));
-        sel.appendChild(opt);
-      });
-
-      const time = document.createElement('input');
-      time.type='text';
-      time.placeholder = L.timePH;
-
-      const btn = document.createElement('button');
-      btn.className='btn'; btn.textContent=L.add;
-      btn.onclick = ()=>{
-        const empIndex = parseInt(sel.value,10);
-        addEntry(employees, empIndex, dayIndex, part, time.value.trim());
-        render();
-      };
-
-      row.appendChild(sel);
-      row.appendChild(time);
-      row.appendChild(btn);
-      container.appendChild(row);
+    function renderDayPicker(){
+      const L=I18N[getLang()], wrap=$('#dayPicker'); wrap.innerHTML='';
+      const label=document.createElement('span'); label.textContent=L.chooseDays+':'; wrap.appendChild(label);
+      for(let i=0;i<7;i++){
+        const badge=document.createElement('label'); badge.className='badge';
+        const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=exportDays[i];
+        cb.onchange=()=>{ exportDays[i]=cb.checked; localStorage.setItem('exportDays', JSON.stringify(exportDays)); };
+        const txt=document.createElement('span'); txt.textContent=L.weekdaysFull[i];
+        badge.appendChild(cb); badge.appendChild(txt); wrap.appendChild(badge);
+      }
+      const allB=document.createElement('button'); allB.className='btn ghost'; allB.textContent=L.all;
+      allB.onclick=()=>{ exportDays=[true,true,true,true,true,true,true]; localStorage.setItem('exportDays', JSON.stringify(exportDays)); renderDayPicker(); };
+      wrap.appendChild(allB);
     }
 
     function render(){
-      const L = I18N[getLang()];
-      const grid = document.getElementById('daysGrid'); grid.innerHTML='';
-      const dates = loadDates();
-      const employees = loadEmployees();
-      const schedule = buildSchedule(employees);
-      const edit = document.getElementById('editMode').checked;
-
-      if(!employees.length){
-        const empty = document.createElement('div');
-        empty.style.padding='20px';
-        empty.style.color='#666';
-        empty.textContent = (getLang()==='he')
-          ? 'אין נתונים להצגה. פתחו את דף ההגדרות ושמרו סידור.'
-          : 'Нет данных. Откройте «Настройки» и сохраните расписание.';
-        grid.appendChild(empty);
-        return;
+      const L=I18N[getLang()];
+      document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
+      const grid=$('#daysGrid'); grid.innerHTML='';
+      if(!weekISO.length || !employees.length){
+        const d=document.createElement('div'); d.className='note'; d.style.padding='10px'; d.textContent=L.noData; grid.appendChild(d); return;
       }
+      const schedule = buildSchedule();
 
       for(let i=0;i<7;i++){
-        const card=document.createElement('section'); card.className='day-card'; card.dataset.dayindex = i;
+        const card=document.createElement('section'); card.className='day-card';
         const head=document.createElement('div'); head.className='day-head';
         const dow=document.createElement('div'); dow.className='dow'; dow.textContent=L.weekdaysFull[i];
-        const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(dates[i]);
+        const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(weekISO[i]);
         head.appendChild(dow); head.appendChild(date);
 
-        // MORNING
         const secM=document.createElement('div'); secM.className='section';
         const titleM=document.createElement('h3'); titleM.textContent=L.morning; secM.appendChild(titleM);
         const mList=schedule[i].morning;
@@ -317,26 +291,11 @@
             const left=document.createElement('span'); left.className='li-text';
             left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
             li.appendChild(left);
-            if(edit){
-              const btn=document.createElement('button'); btn.className='btn icon'; btn.title=L.remove; btn.textContent='×';
-              btn.onclick=()=>{ removeEntry(employees, p.empIndex, i, 'm'); render(); };
-              li.appendChild(btn);
-            }
             ol.appendChild(li);
           });
           secM.appendChild(ol);
-        } else {
-          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em);
-        }
-        if(edit){
-          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent=L.add;
-          const addWrap=document.createElement('div');
-          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, employees, i, 'm'); };
-          titleM.appendChild(addBtn);
-          secM.appendChild(addWrap);
-        }
+        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
 
-        // EVENING
         const secE=document.createElement('div'); secE.className='section';
         const titleE=document.createElement('h3'); titleE.textContent=L.evening; secE.appendChild(titleE);
         const eList=schedule[i].evening;
@@ -347,48 +306,28 @@
             const left=document.createElement('span'); left.className='li-text';
             left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
             li.appendChild(left);
-            if(edit){
-              const btn=document.createElement('button'); btn.className='btn icon'; btn.title=L.remove; btn.textContent='×';
-              btn.onclick=()=>{ removeEntry(employees, p.empIndex, i, 'e'); render(); };
-              li.appendChild(btn);
-            }
             ol.appendChild(li);
           });
           secE.appendChild(ol);
-        } else {
-          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em);
-        }
-        if(edit){
-          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent=L.add;
-          const addWrap=document.createElement('div');
-          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, employees, i, 'e'); };
-          titleE.appendChild(addBtn);
-          secE.appendChild(addWrap);
-        }
+        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
 
         card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
       }
     }
 
-    // ===== экспорт TXT =====
-    function buildExportLines(selectedIdx){
-      const L = I18N[getLang()];
-      const dates = loadDates();
-      const employees = loadEmployees();
-      const schedule = buildSchedule(employees);
+    // ===== exports =====
+    function selectedIdx(){ const out=[]; for(let i=0;i<7;i++) if(exportDays[i]) out.push(i); return out; }
 
-      const lines = [];
-      for(const i of selectedIdx){
-        lines.push(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`);
-        lines.push(`${L.labelMorning(i)}:`);
-        if(schedule[i].morning.length){
-          schedule[i].morning.forEach((p, idx)=> lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`));
-        } else { lines.push('—'); }
-        lines.push(`${L.labelEvening(i)}:`);
-        if(schedule[i].evening.length){
-          schedule[i].evening.forEach((p, idx)=> lines.push(`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`));
-        } else { lines.push('—'); }
+    function buildExportLines(){
+      const L=I18N[getLang()], schedule=buildSchedule(), lines=[];
+      const idx = selectedIdx();
+      for(const i of idx){
+        lines.push(`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`);
+        lines.push(`${L.morning}:`);
+        if(schedule[i].morning.length){ schedule[i].morning.forEach((p, n)=>lines.push(`${n+1}. ${p.name}${p.time?` — ${p.time}`:''}`)); } else lines.push('—');
+        lines.push(`${L.evening}:`);
+        if(schedule[i].evening.length){ schedule[i].evening.forEach((p, n)=>lines.push(`${n+1}. ${p.name}${p.time?` — ${p.time}`:''}`)); } else lines.push('—');
         lines.push('');
       }
       return lines;
@@ -397,202 +336,152 @@
     function downloadBlob(str, mime, filename){
       const blob = new Blob([str], {type: mime});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click();
-      a.remove(); URL.revokeObjectURL(url);
+      const a = document.createElement('a'); a.href=url; a.download=filename;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
 
-    document.getElementById('btnTxt').addEventListener('click', ()=>{
-      const lines = buildExportLines(selectedDayIndices());
-      downloadBlob(lines.join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
+    // TXT
+    btnTxt.addEventListener('click', ()=>{
+      if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
+      downloadBlob(buildExportLines().join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
     });
 
-    // ===== DOCX (двухколоночные таблицы) с учётом выбранных дней =====
+    // DOCX (двухколоночные таблицы)
     function makeDayTable(docxNS, L, dayData, isRTL){
       const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, ShadingType, BorderStyle } = docxNS;
-
       const cellHdr = (text)=> new TableCell({
-        children: [ new Paragraph({ children:[ new TextRun({ text, bold:true }) ], alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT, bidirectional:isRTL }) ],
-        shading: { type: ShadingType.CLEAR, color: "FFFFFF", fill: "EEF4FF" },
-        margins: { top:120, bottom:120, left:180, right:180 }
+        children:[ new Paragraph({ children:[new TextRun({text, bold:true})], alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT, bidirectional:isRTL }) ],
+        shading:{ type:ShadingType.CLEAR, color:"FFFFFF", fill:"EEF4FF" }, margins:{top:120,bottom:120,left:180,right:180}
       });
-
       const cellList = (items)=> new TableCell({
-        children: items.length ? items.map((line)=> new Paragraph({ children:[ new TextRun(line) ], alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT, bidirectional:isRTL }))
-                               : [ new Paragraph({ children:[ new TextRun("—") ], alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT, bidirectional:isRTL }) ],
-        margins: { top:120, bottom:120, left:180, right:180 }
+        children: items.length ? items.map((line)=> new Paragraph({ children:[new TextRun(line)], alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT, bidirectional:isRTL })) :
+                                 [ new Paragraph({ children:[new TextRun('—')], alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT, bidirectional:isRTL }) ],
+        margins:{top:120,bottom:120,left:180,right:180}
       });
-
-      const headerRow = new TableRow({ children: [ cellHdr(L.morning), cellHdr(L.evening) ] });
+      const headerRow = new TableRow({ children:[ cellHdr(L.morning), cellHdr(L.evening) ] });
       const mLines = dayData.morning.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
       const eLines = dayData.evening.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-      const listRow = new TableRow({ children: [ cellList(mLines), cellList(eLines) ] });
-
+      const listRow = new TableRow({ children:[ cellList(mLines), cellList(eLines) ] });
       return new Table({
-        rows: [headerRow, listRow],
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: {
-          top:   { style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
-          bottom:{ style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
-          left:  { style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
-          right: { style: BorderStyle.SINGLE, size: 4, color: "DDE3EA" },
-          insideH: { style: BorderStyle.SINGLE, size: 4, color: "E8EDF3" },
-          insideV: { style: BorderStyle.SINGLE, size: 4, color: "E8EDF3" },
+        rows:[headerRow,listRow],
+        width:{ size:100, type:WidthType.PERCENTAGE },
+        borders:{
+          top:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
+          bottom:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
+          left:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
+          right:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
+          insideH:{style:BorderStyle.SINGLE,size:4,color:"E8EDF3"},
+          insideV:{style:BorderStyle.SINGLE,size:4,color:"E8EDF3"},
         }
       });
     }
 
-    document.getElementById('btnDocx').addEventListener('click', async ()=>{
-      const L = I18N[getLang()];
-      const isRTL = (getLang()==='he');
-      const selIdx = selectedDayIndices();
-
-      const dates = loadDates();
-      const employees = loadEmployees();
-      const schedule = buildSchedule(employees);
-
+    btnDocx.addEventListener('click', async ()=>{
+      if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
+      const L=I18N[getLang()], isRTL=(getLang()==='he');
+      const schedule=buildSchedule(); const days=selectedIdx();
       const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation } = window.docx;
-      const children = [];
-
-      children.push(new Paragraph({
-        children: [ new TextRun(L.title) ],
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER
-      }));
-
-      for (const i of selIdx) {
-        children.push(new Paragraph({
-          children: [ new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`) ],
-          heading: HeadingLevel.HEADING_2,
-          alignment: isRTL ? AlignmentType.RIGHT : AlignmentType.LEFT,
-        }));
+      const children=[];
+      children.push(new Paragraph({ children:[new TextRun(L.title)], heading:HeadingLevel.HEADING_1, alignment:AlignmentType.CENTER }));
+      for(const i of days){
+        children.push(new Paragraph({ children:[new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`)], heading:HeadingLevel.HEADING_2, alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT }));
         children.push( makeDayTable(window.docx, L, schedule[i], isRTL) );
         children.push(new Paragraph({ children:[ new TextRun('') ] }));
       }
-
-      const doc = new Document({
-        sections: [{
-          properties: {
-            page: {
-              size: { width: 11906, height: 16838, orientation: PageOrientation.PORTRAIT },
-              margin: { top: 720, right: 720, bottom: 720, left: 720 }
-            }
-          },
-          children
-        }]
-      });
-
-      const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'schedule.docx';
-      document.body.appendChild(a); a.click();
-      a.remove(); URL.revokeObjectURL(url);
+      const doc = new Document({ sections:[{properties:{ page:{ size:{width:11906,height:16838,orientation:PageOrientation.PORTRAIT}, margin:{top:720,right:720,bottom:720,left:720} } }, children}] });
+      const blob=await Packer.toBlob(doc);
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='schedule.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
 
-    // ===== PDF (html2pdf) — экспортируются только выбранные дни =====
-    document.getElementById('btnPdf').addEventListener('click', ()=>{
-      const selIdx = selectedDayIndices();
-      const L = I18N[getLang()];
-      const dates = loadDates();
-      const employees = loadEmployees();
-      const schedule = buildSchedule(employees);
+    // PDF (html2pdf)
+    btnPdf.addEventListener('click', ()=>{
+      if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
+      const L=I18N[getLang()], isRTL=(getLang()==='he');
+      const schedule=buildSchedule(); const days=selectedIdx();
 
-      // печатный контейнер (flex вместо <table>, явный line-height)
-      const container = document.createElement('div');
-      container.style.padding = '16px';
-      container.style.fontFamily = 'Arial, Helvetica, sans-serif';
-      container.style.fontSize = '12pt';
-      container.style.lineHeight = '1.4';
-      container.dir = (getLang()==='he') ? 'rtl' : 'ltr';
+      const container=document.createElement('div');
+      container.style.padding='16px'; container.style.fontFamily='Arial, Helvetica, sans-serif';
+      container.style.fontSize='12pt'; container.style.lineHeight='1.4';
+      container.dir = isRTL ? 'rtl' : 'ltr';
+      const title=document.createElement('h1'); title.textContent=L.title; title.style.textAlign='center'; title.style.margin='0 0 16px'; container.appendChild(title);
 
-      const title = document.createElement('h1');
-      title.textContent = L.title;
-      title.style.textAlign = 'center';
-      title.style.margin = '0 0 16px 0';
-      container.appendChild(title);
+      days.forEach(i=>{
+        const block=document.createElement('div'); block.style.border='1px solid #e6e6e6'; block.style.borderRadius='10px'; block.style.padding='12px'; block.style.margin='0 0 12px'; block.style.background='#fff';
+        const h2=document.createElement('h2'); h2.textContent=`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`; h2.style.margin='0 0 8px'; block.appendChild(h2);
 
-      selIdx.forEach(i=>{
-        const block = document.createElement('div');
-        block.style.border = '1px solid #e6e6e6';
-        block.style.borderRadius = '10px';
-        block.style.padding = '12px';
-        block.style.marginBottom = '12px';
-        block.style.background = '#fff';
-
-        const h2 = document.createElement('h2');
-        h2.textContent = `${L.weekdaysFull[i]} — ${L.fmt(dates[i])}`;
-        h2.style.margin = '0 0 8px 0';
-        block.appendChild(h2);
-
-        const twoCol = document.createElement('div');
-        twoCol.style.display = 'flex';
-        twoCol.style.gap = '12px';
-
-        const col = (titleTxt, items)=>{
-          const c = document.createElement('div');
-          c.style.flex = '1';
-          const th = document.createElement('div');
-          th.textContent = titleTxt;
-          th.style.background = '#eef4ff';
-          th.style.border = '1px solid #dde3ea';
-          th.style.padding = '6px 8px';
-          th.style.fontWeight = '700';
-          c.appendChild(th);
-
-          const body = document.createElement('div');
-          body.style.border = '1px solid #e8edf3';
-          body.style.padding = '6px 8px';
-          if(items.length){
-            items.forEach(txt=>{
-              const line = document.createElement('div');
-              line.textContent = txt;
-              line.style.margin = '2px 0';
-              line.style.whiteSpace = 'pre-wrap';
-              body.appendChild(line);
-            });
-          } else {
-            const empty = document.createElement('div');
-            empty.textContent = '—';
-            empty.style.color = '#999';
-            body.appendChild(empty);
-          }
-          c.appendChild(body);
-          return c;
+        const two=document.createElement('div'); two.style.display='flex'; two.style.gap='12px';
+        const col=(titleTxt, items)=>{
+          const c=document.createElement('div'); c.style.flex='1';
+          const th=document.createElement('div'); th.textContent=titleTxt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='6px 8px'; th.style.fontWeight='700'; c.appendChild(th);
+          const body=document.createElement('div'); body.style.border='1px solid #e8edf3'; body.style.padding='6px 8px';
+          if(items.length){ items.forEach(t=>{ const line=document.createElement('div'); line.textContent=t; line.style.margin='2px 0'; body.appendChild(line); }); }
+          else { const empty=document.createElement('div'); empty.textContent='—'; empty.style.color='#999'; body.appendChild(empty); }
+          c.appendChild(body); return c;
         };
-
-        const mLines = schedule[i].morning.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-        const eLines = schedule[i].evening.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-
-        twoCol.appendChild(col(L.morning, mLines));
-        twoCol.appendChild(col(L.evening, eLines));
-
-        block.appendChild(twoCol);
-        container.appendChild(block);
+        const mLines=schedule[i].morning.map((p,idx)=>`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+        const eLines=schedule[i].evening.map((p,idx)=>`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
+        two.appendChild(col(L.morning, mLines)); two.appendChild(col(L.evening, eLines));
+        block.appendChild(two); container.appendChild(block);
       });
 
-      const opt = {
-        margin:       10,
-        filename:     'schedule.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
-      };
-
-      html2pdf().set(opt).from(container).save();
+      html2pdf().set({
+        margin:10, filename:'schedule.pdf',
+        image:{type:'jpeg',quality:0.98},
+        html2canvas:{scale:2,useCORS:true},
+        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+        pagebreak:{mode:['css','legacy']}
+      }).from(container).save();
     });
+
+    // ===== file input =====
+    docxInput.addEventListener('change', async (e)=>{
+      const file=e.target.files && e.target.files[0]; if(!file) return;
+      try{
+        const raw = await extractTextFromDocx(file);
+        parseModelFromRawText(raw);
+        // восстановить сохранённые флаги backoffice по именам
+        const saved = JSON.parse(localStorage.getItem('employees')||'[]');
+        const boMap = new Map(saved.map(x=>[(x.name||'').trim(), !!x.backend]));
+        employees.forEach(emp=>{ if(boMap.has((emp.name||'').trim())) emp.backend = boMap.get((emp.name||'').trim()); });
+        // выбор дней
+        exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
+        renderDayPicker();
+        render();
+      }catch(err){
+        alert('Ошибка чтения DOCX: '+err.message);
+      }
+    });
+
+    // ===== local save/load =====
+    btnSaveLocal.addEventListener('click', ()=>{
+      if(!weekISO.length || !employees.length){ alert('Нет данных для сохранения. Загрузите DOCX.'); return; }
+      localStorage.setItem('weekDates', JSON.stringify(weekISO));
+      localStorage.setItem('employees', JSON.stringify(employees));
+      alert('Сохранено ✓');
+    });
+
+    // toggles
+    $('#showBO').addEventListener('change', render);
+    $('#editMode').addEventListener('change', ()=>alert('Редактирование прямо здесь можно добавить, но сейчас данные берутся из DOCX. Меняйте файл и загружайте снова.'));
+    $('#langToggle').addEventListener('click',(e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
 
     // init
-    document.getElementById('showBO').checked = localStorage.getItem('showBackend')==='1';
-    document.getElementById('showBO').addEventListener('change',(e)=>{
-      localStorage.setItem('showBackend', e.target.checked ? '1' : '0');
+    (function init(){
+      try{
+        const L=I18N[getLang()];
+        document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
+        applyLang();
+        // если ранее сохраняли — подтянем (чтобы сразу что-то показать)
+        const wd=JSON.parse(localStorage.getItem('weekDates')||'[]');
+        const em=JSON.parse(localStorage.getItem('employees')||'[]');
+        if(Array.isArray(wd)&&wd.length===7 && Array.isArray(em)&&em.length){
+          weekISO=wd; employees=em;
+        }
+        exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
+      }catch{}
+      renderDayPicker();
       render();
-    });
-    document.getElementById('editMode').addEventListener('change', render);
-    document.getElementById('langToggle').addEventListener('click',(e)=>{e.preventDefault(); setLang(getLang()==='he'?'ru':'he');});
-    applyLang(); render(); renderDayPicker();
+    })();
   </script>
 </body>
 </html>
