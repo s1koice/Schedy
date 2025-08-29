@@ -60,12 +60,11 @@
         <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
         <div class="controls">
           <label class="badge"><input type="checkbox" id="showBO" /> <span id="t_showBO">להציג בק־אופיס</span></label>
-          <label class="badge"><input type="checkbox" id="editMode" /> <span id="t_edit">עריכה</span></label>
           <button class="btn ghost" id="btnSaveLocal">שמירה במכשיר</button>
         </div>
       </div>
       <div class="note" id="t_hint">
-        פורמט: שורת 7 תאריכים dd-mm (למשל 17-08 ... 23-08), ואז שורות עובדים עם 7 תאים (OFF / P / 8-17 / 9:00-21:00 ...). בוקר = התחלה לפני 11:00.
+        פורמט: תאריכים dd-mm ברצף (7), ואז לכל עובד – 7 שורות ערכים (OFF / P / 9-21 / 9:30-22 ...), ייתכנו הערות אחרי הזמן (חלבי+חם).
       </div>
     </section>
 
@@ -90,8 +89,7 @@
         title:'סידור עבודה (DOCX)',
         upload:'בחר קובץ DOCX',
         showBO:'להציג בק־אופיס',
-        edit:'עריכה',
-        hint:'פורמט: שורת 7 תאריכים dd-mm (למשל 17-08 ... 23-08), ואז שורות עובדים עם 7 תאים (OFF / P / 8-17 / 9:00-21:00 ...). בוקר = התחלה לפני 11:00.',
+        hint:'פורמט: תאריכים dd-mm ברצף (7), ואז לכל עובד – 7 שורות ערכים (OFF / P / 9-21 / 9:30-22 ...), ייתכנו הערות אחרי הזמן (חלבי+חם). בוקר = התחלה לפני 11:00.',
         morning:'בוקר', evening:'ערב',
         weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
@@ -106,8 +104,7 @@
         title:'График (DOCX)',
         upload:'Выберите DOCX',
         showBO:'Показывать Backoffice',
-        edit:'Редактировать',
-        hint:'Формат: строка 7 дат dd-mm (например 17-08 ... 23-08), затем строки сотрудников с 7 ячейками (OFF / P / 8-17 / 9:00-21:00 ...). Утро = начало раньше 11:00.',
+        hint:'Формат: 7 дат dd-mm подряд, затем для каждого сотрудника — 7 строк значений (OFF / P / 9-21 / 9:30-22 ...), возможны комментарии после времени. Утро = старт раньше 11:00.',
         morning:'Утро', evening:'Вечер',
         weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
@@ -126,7 +123,6 @@
       t_title.textContent=L.title;
       t_uploadLabel.textContent=L.upload;
       t_showBO.textContent=L.showBO;
-      t_edit.textContent=L.edit;
       t_hint.textContent=L.hint;
       btnSaveLocal.textContent=L.saveLocal;
       btnTxt.textContent=L.txt; btnDocx.textContent=L.docx; btnPdf.textContent=L.pdf;
@@ -136,15 +132,16 @@
     // ===== state =====
     let weekISO = [];      // [ 'YYYY-MM-DD' x7 ]
     let employees = [];    // [ { name, backend:false, shifts:{d0..d6:{m,e,timeM,timeE}} } ]
-    let exportDays = [true,true,true,true,true,true,true];
+    let exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
 
-    // ===== helpers =====
     const $=s=>document.querySelector(s);
     function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 
+    // === time parsing ===
     function normalizeTimeToken(tok){
-      const m = tok.match(/(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/);
-      return m ? m[0] : tok;
+      // берём только «HH(:MM)?-HH(:MM)?» из начала строки; отрезаем хвост с комментариями
+      const m = tok.match(/(\d{1,2}(?::?\d{1,2})?-\d{1,2}(?::?\d{1,2})?)/);
+      return m ? m[1] : tok;
     }
     function parseTimeRange(str){
       const m = normalizeTimeToken(str).match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
@@ -154,26 +151,28 @@
     }
     function assignShiftByTime(tr){
       if(!tr) return {m:false,e:false,timeM:'',timeE:''};
-      const m = (tr.start < 11); // утро — строго раньше 11:00
-      const e = (tr.end > 17) || (tr.start >= 12); // вечер — понимаем типовые 9-21/10-22/11-22 …
+      const m = (tr.start < 11);          // утро — строго раньше 11:00
+      const e = (tr.end > 17) || (tr.start >= 12);
       return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
     }
 
+    // === safe sort (iOS Safari locales) ===
     function safeSortByName(arr){
       const lang = getLang()==='he' ? 'he-IL' : 'ru-RU';
       try{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'', lang)); }
       catch{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
     }
 
-    // ===== parse DOCX (mammoth) =====
+    // === DOCX read ===
     async function extractTextFromDocx(file){
       const arrayBuffer = await file.arrayBuffer();
       const { value } = await window.mammoth.extractRawText({ arrayBuffer });
-      // mammoth даёт текст с переводами строк и табами
-      return value.replace(/\u000b/g,'\n'); // вертикальные табы → \n
+      return value.replace(/\u000b/g,'\n');
     }
 
+    // === detect week dates ===
     function findWeekDDMM(text){
+      // Ищем первую последовательность из 7 токенов dd-mm (каждый на своей строке тоже ок)
       const tokens = Array.from(text.matchAll(/\b(\d{1,2}-\d{1,2})\b/g)).map(m=>m[1]);
       for(let i=0;i+6<tokens.length;i++){
         const s=tokens.slice(i,i+7);
@@ -181,58 +180,79 @@
       }
       return [];
     }
-
     function buildWeekISOFromDDMM(ddmm){
       const y=new Date().getFullYear();
       return ddmm.map(s=>{ const [d,m]=s.split('-').map(v=>parseInt(v,10)); return toISO(y,m,d); });
     }
 
-    function takeSevenTokens(arr){
-      const out=[]; let i=0;
-      while(i<arr.length && out.length<7){
-        const t=arr[i];
-        if(/^off$/i.test(t)||/^p$/i.test(t)){ out.push(t.toUpperCase()); i++; continue; }
-        if(/(\d{1,2}(?::?\d{0,2})?)-(\d{1,2}(?::?\d{0,2})?)/.test(t)){ out.push(normalizeTimeToken(t)); i++; continue; }
-        if(/^\d{1,2}$/.test(t)){ out.push(t); i++; continue; } // допускаем одиночные числа как «присутствие»
-        i++;
-      }
-      return out.length===7 ? out : null;
+    // === token helpers ===
+    function isShiftToken(t){
+      if(!t) return false;
+      const clean = t.trim();
+      if(/^off$/i.test(clean) || /^p$/i.test(clean)) return true;
+      return /(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/.test(clean);
     }
 
+    // взять 7 валидных токенов, двигая указатель по lines
+    function takeSevenFrom(lines, startIdx){
+      const out=[]; let i=startIdx;
+      while(i<lines.length && out.length<7){
+        const tok = lines[i].trim();
+        if(isShiftToken(tok)) out.push(tok);
+        i++;
+      }
+      return out.length===7 ? { tokens: out, nextIndex: i } : null;
+    }
+
+    // строка — кандидат на имя (буквы/пробелы/кавычки), без цифр/дефисов времени
+    function looksLikeName(s){
+      if(!s) return false;
+      if(/\d+-\d+/.test(s)) return false; // не допускать строки-времена
+      // заголовки секций часто очень короткие или содержат «—», «ערב/בוקר» и т.п.
+      if(/[–—\-]/.test(s) && s.length <= 6) return false;
+      // имя: минимум 2 буквы
+      return /[\p{L}]{2,}/u.test(s);
+    }
+
+    // === main parse ===
     function parseModelFromRawText(raw){
-      // 1) 7 дат
       const ddmm = findWeekDDMM(raw);
       if(ddmm.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
       weekISO = buildWeekISOFromDDMM(ddmm);
 
-      // 2) строки сотрудника: «Имя ... 7 токенов»
-      const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
+
       const rows=[];
-      for(const line of lines){
-        // имя (буквы/пробелы/кавычки) + пробелы + Хвост
-        const m = line.match(/^([\p{L}\s׳״"'\-]+?)(?:\s{2,}|\s+)(.+)$/u);
-        if(!m) continue;
-        const name=m[1].trim(), tail=m[2].trim();
-        if(name.length<2) continue;
-        const seven = takeSevenTokens(tail.split(/\s+|\t+/));
-        if(seven) rows.push({name, values: seven});
+      for(let i=0; i<lines.length; i++){
+        const line = lines[i];
+
+        // пропускаем явные заголовки блоков (встречающиеся в шаблоне)
+        if (/^(בוקר|ערב|לילה|אולם|לובי|קצביה|חלבי|אפיה|סנייק|סלטים)/.test(line)) continue;
+        if (/^(קפה|ארוחת|מרקים|חמוצים|הפתעה)/.test(line)) continue;
+
+        if(looksLikeName(line)){
+          const result = takeSevenFrom(lines, i+1);
+          if(result){
+            rows.push({ name: line, values: result.tokens });
+            i = result.nextIndex - 1; // перескакиваем на конец блока 7 значений
+          }
+        }
       }
 
       employees = rows.map(r=>{
         const shifts={};
-        for(let i=0;i<7;i++){
-          const cell=r.values[i];
-          if(!cell){ shifts['d'+i]={m:false,e:false,timeM:'',timeE:''}; continue; }
-          if(/^OFF$/i.test(cell)){ shifts['d'+i]={m:false,e:false,timeM:'',timeE:''}; continue; }
-          if(/^P$/i.test(cell)){ shifts['d'+i]={m:true,e:true,timeM:'',timeE:''}; continue; }
+        for(let d=0; d<7; d++){
+          const cell=r.values[d];
+          if(/^off$/i.test(cell)){ shifts['d'+d]={m:false,e:false,timeM:'',timeE:''}; continue; }
+          if(/^p$/i.test(cell)){ shifts['d'+d]={m:true,e:true,timeM:'',timeE:''}; continue; }
           const tr = parseTimeRange(cell);
-          shifts['d'+i] = tr ? assignShiftByTime(tr) : {m:true,e:true,timeM:'',timeE:''};
+          shifts['d'+d] = tr ? assignShiftByTime(tr) : {m:true,e:true,timeM:'',timeE:''};
         }
         return { name:r.name, backend:false, shifts };
       });
     }
 
-    // ===== schedule build + render =====
+    // === schedule + render ===
     function buildSchedule(){
       const showBO = $('#showBO').checked;
       const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
@@ -316,9 +336,8 @@
       }
     }
 
-    // ===== exports =====
+    // === exports ===
     function selectedIdx(){ const out=[]; for(let i=0;i<7;i++) if(exportDays[i]) out.push(i); return out; }
-
     function buildExportLines(){
       const L=I18N[getLang()], schedule=buildSchedule(), lines=[];
       const idx = selectedIdx();
@@ -332,15 +351,12 @@
       }
       return lines;
     }
-
     function downloadBlob(str, mime, filename){
       const blob = new Blob([str], {type: mime});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href=url; a.download=filename;
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
-
-    // TXT
     btnTxt.addEventListener('click', ()=>{
       if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
       downloadBlob(buildExportLines().join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
@@ -375,7 +391,6 @@
         }
       });
     }
-
     btnDocx.addEventListener('click', async ()=>{
       if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
       const L=I18N[getLang()], isRTL=(getLang()==='he');
@@ -393,7 +408,7 @@
       const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='schedule.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
 
-    // PDF (html2pdf)
+    // PDF (html2pdf) — аккуратный макет, явный line-height
     btnPdf.addEventListener('click', ()=>{
       if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
       const L=I18N[getLang()], isRTL=(getLang()==='he');
@@ -433,26 +448,25 @@
       }).from(container).save();
     });
 
-    // ===== file input =====
+    // file input
     docxInput.addEventListener('change', async (e)=>{
       const file=e.target.files && e.target.files[0]; if(!file) return;
       try{
         const raw = await extractTextFromDocx(file);
         parseModelFromRawText(raw);
-        // восстановить сохранённые флаги backoffice по именам
+        // восстановление флажков backoffice по ранее сохранённым именам (если были)
         const saved = JSON.parse(localStorage.getItem('employees')||'[]');
         const boMap = new Map(saved.map(x=>[(x.name||'').trim(), !!x.backend]));
         employees.forEach(emp=>{ if(boMap.has((emp.name||'').trim())) emp.backend = boMap.get((emp.name||'').trim()); });
-        // выбор дней
-        exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
         renderDayPicker();
         render();
       }catch(err){
-        alert('Ошибка чтения DOCX: '+err.message);
+        console.error(err);
+        alert('Ошибка чтения/парсинга DOCX: '+err.message);
       }
     });
 
-    // ===== local save/load =====
+    // local save
     btnSaveLocal.addEventListener('click', ()=>{
       if(!weekISO.length || !employees.length){ alert('Нет данных для сохранения. Загрузите DOCX.'); return; }
       localStorage.setItem('weekDates', JSON.stringify(weekISO));
@@ -460,27 +474,18 @@
       alert('Сохранено ✓');
     });
 
-    // toggles
-    $('#showBO').addEventListener('change', render);
-    $('#editMode').addEventListener('change', ()=>alert('Редактирование прямо здесь можно добавить, но сейчас данные берутся из DOCX. Меняйте файл и загружайте снова.'));
+    // lang toggle
     $('#langToggle').addEventListener('click',(e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
 
     // init
     (function init(){
+      applyLang();
       try{
-        const L=I18N[getLang()];
-        document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
-        applyLang();
-        // если ранее сохраняли — подтянем (чтобы сразу что-то показать)
         const wd=JSON.parse(localStorage.getItem('weekDates')||'[]');
         const em=JSON.parse(localStorage.getItem('employees')||'[]');
-        if(Array.isArray(wd)&&wd.length===7 && Array.isArray(em)&&em.length){
-          weekISO=wd; employees=em;
-        }
-        exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
+        if(Array.isArray(wd)&&wd.length===7 && Array.isArray(em)&&em.length){ weekISO=wd; employees=em; }
       }catch{}
-      renderDayPicker();
-      render();
+      renderDayPicker(); render();
     })();
   </script>
 </body>
