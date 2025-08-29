@@ -12,14 +12,17 @@
     header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
     .bar{height:1px;background:var(--line)}
     .wrap{padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+
     .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:14px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .note{color:var(--muted);font-size:12px}
-    .btn{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer}
+    .btn{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
     .btn.ghost{background:#eef4ff;color:#1a73e8}
+    .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
     input[type="file"]{display:none}
     .filelabel{display:inline-flex;align-items:center;gap:10px;border:1px dashed var(--line);padding:10px 14px;border-radius:12px;background:#fff;cursor:pointer}
     .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    select,input[type="text"], input[type="search"]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
     .grid{display:flex;gap:16px;padding:16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
     .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
@@ -32,9 +35,15 @@
     .li-text{flex:1}
     .li-num{opacity:.7; min-width:2.4em}
     .empty{color:var(--muted);font-style:italic}
-    select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
+    .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
     .picker,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .badge{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;gap:8px}
+
+    /* менеджер сотрудников */
+    .emp-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .emp-table th,.emp-table td{border-bottom:1px solid var(--line);padding:6px 4px;font-size:13px}
+    .emp-table th{color:#333;text-align:left}
+    .emp-table input[type="text"]{width:100%}
   </style>
 
   <!-- DOCX → text -->
@@ -54,20 +63,23 @@
   <div class="bar"></div>
 
   <main class="wrap">
+    <!-- верхняя панель -->
     <section class="card">
       <div class="row">
         <label class="filelabel" for="docxInput" id="t_uploadLabel">בחר/ите DOCX עם графиком</label>
         <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
         <div class="controls">
-          <label class="badge"><input type="checkbox" id="showBO" /> <span id="t_showBO">להציג בק־אופיס</span></label>
+          <label class="badge"><input type="checkbox" id="toggleBO" /> <span id="t_showBO">להציג בק־אופיס</span></label>
+          <label class="badge"><input type="checkbox" id="editMode" /> <span id="t_edit">עריכה</span></label>
           <button class="btn ghost" id="btnSaveLocal">שמירה במכשיר</button>
         </div>
       </div>
       <div class="note" id="t_hint">
-        פורמט: תאריכים dd-mm ברצף (7), ואז לכל עובד – 7 שורות ערכים (OFF / P / 9-21 / 9:30-22 ...), ייתכנו הערות אחרי הזמן (חלבי+חם).
+        פורמט: 7 תאריכים dd-mm ברצף, אחריהם לכל עובד 7 ערכים (OFF / P / 9-21 / 9:30-22 ...). בוקר = התחלה לפני 11:00. הערות אחרי הזמן נחתכות.
       </div>
     </section>
 
+    <!-- выбор дней и экспорт -->
     <section class="card">
       <div class="row" style="justify-content:space-between">
         <div class="picker" id="dayPicker"></div>
@@ -79,6 +91,30 @@
       </div>
       <div class="grid" id="daysGrid"></div>
     </section>
+
+    <!-- менеджер сотрудников -->
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <strong id="t_empManagerTitle">ניהול עובדים</strong>
+        <div class="row">
+          <input type="text" id="newEmpName" placeholder="Имя / שם" />
+          <label class="badge"><input type="checkbox" id="newEmpBO" /> <span id="t_isBO">Backoffice</span></label>
+          <button class="btn" id="btnAddEmp">+ <span id="t_addEmp">Добавить</span></button>
+        </div>
+      </div>
+
+      <table class="emp-table" id="empTable">
+        <thead>
+          <tr>
+            <th id="t_empName">Имя</th>
+            <th id="t_empBO">Backoffice</th>
+            <th id="t_empActions">Действия</th>
+          </tr>
+        </thead>
+        <tbody><!-- rows render here --></tbody>
+      </table>
+      <div class="note" id="t_empNote">Изменения сохраняются автоматически. Отмеченные Backoffice можно скрыть переключателем сверху.</div>
+    </section>
   </main>
 
   <script>
@@ -89,7 +125,8 @@
         title:'סידור עבודה (DOCX)',
         upload:'בחר קובץ DOCX',
         showBO:'להציג בק־אופיס',
-        hint:'פורמט: תאריכים dd-mm ברצף (7), ואז לכל עובד – 7 שורות ערכים (OFF / P / 9-21 / 9:30-22 ...), ייתכנו הערות אחרי הזמן (חלבי+חם). בוקר = התחלה לפני 11:00.',
+        edit:'עריכה',
+        hint:'פורמט: 7 תאריכים dd-mm ברצף, אחריהם לכל עובד 7 ערכים (OFF / P / 9-21 / 9:30-22 ...). בוקר = התחלה לפני 11:00.',
         morning:'בוקר', evening:'ערב',
         weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
@@ -97,14 +134,22 @@
         all:'הכול',
         saveLocal:'שמירה במכשיר',
         txt:'TXT', docx:'DOCX', pdf:'PDF',
-        noData:'אין נתונים להצגה. העלו קובץ DOCX.',
+        noData:'אין נתונים להצגה. העלו קובץ DOCX או הוסיפו עובדים ידנית.',
+        empManagerTitle:'ניהול עובדים',
+        addEmp:'הוסף',
+        empName:'שם',
+        empBO:'בק־אופיס',
+        empActions:'פעולות',
+        empNote:'השינויים נשמרים אוטומטית. ניתן להסתיר בק־אופיס על ידי המתג למעלה.',
+        remove:'הסר',
       },
       ru: {
         _dir:'ltr',
         title:'График (DOCX)',
         upload:'Выберите DOCX',
         showBO:'Показывать Backoffice',
-        hint:'Формат: 7 дат dd-mm подряд, затем для каждого сотрудника — 7 строк значений (OFF / P / 9-21 / 9:30-22 ...), возможны комментарии после времени. Утро = старт раньше 11:00.',
+        edit:'Редактировать',
+        hint:'Формат: 7 дат dd-mm подряд, затем для каждого сотрудника 7 значений (OFF / P / 9-21 / 9:30-22 ...). Утро = старт раньше 11:00.',
         morning:'Утро', evening:'Вечер',
         weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
         fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
@@ -112,37 +157,51 @@
         all:'Все',
         saveLocal:'Сохранить на устройстве',
         txt:'TXT', docx:'DOCX', pdf:'PDF',
-        noData:'Нет данных. Загрузите DOCX.',
+        noData:'Нет данных. Загрузите DOCX или добавьте сотрудников вручную.',
+        empManagerTitle:'Менеджер сотрудников',
+        addEmp:'Добавить',
+        empName:'Имя',
+        empBO:'Backoffice',
+        empActions:'Действия',
+        empNote:'Изменения сохраняются автоматически. Отмеченных Backoffice можно скрыть переключателем сверху.',
+        remove:'Удалить',
       }
     };
     function getLang(){ return localStorage.getItem('lang')||'he'; }
-    function setLang(l){ localStorage.setItem('lang',l); applyLang(); render(); renderDayPicker(); }
+    function setLang(l){ localStorage.setItem('lang',l); applyLang(); renderAll(); }
     function applyLang(){
       const L=I18N[getLang()];
       document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
       t_title.textContent=L.title;
       t_uploadLabel.textContent=L.upload;
       t_showBO.textContent=L.showBO;
+      t_edit.textContent=L.edit;
       t_hint.textContent=L.hint;
       btnSaveLocal.textContent=L.saveLocal;
       btnTxt.textContent=L.txt; btnDocx.textContent=L.docx; btnPdf.textContent=L.pdf;
       langToggle.textContent=(getLang()==='he'?'Русский':'עברית');
+      t_empManagerTitle.textContent=L.empManagerTitle;
+      t_addEmp.textContent=L.addEmp;
+      t_empName.textContent=L.empName;
+      t_empBO.textContent=L.empBO;
+      t_empActions.textContent=L.empActions;
+      t_empNote.textContent=L.empNote;
     }
 
-    // ===== state =====
+    // ===== state & helpers =====
     let weekISO = [];      // [ 'YYYY-MM-DD' x7 ]
     let employees = [];    // [ { name, backend:false, shifts:{d0..d6:{m,e,timeM,timeE}} } ]
     let exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
-
     const $=s=>document.querySelector(s);
-    function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 
-    // === time parsing ===
-    function normalizeTimeToken(tok){
-      // берём только «HH(:MM)?-HH(:MM)?» из начала строки; отрезаем хвост с комментариями
-      const m = tok.match(/(\d{1,2}(?::?\d{1,2})?-\d{1,2}(?::?\d{1,2})?)/);
-      return m ? m[1] : tok;
+    function saveAll(){
+      localStorage.setItem('weekDates', JSON.stringify(weekISO));
+      localStorage.setItem('employees', JSON.stringify(employees));
+      localStorage.setItem('exportDays', JSON.stringify(exportDays));
     }
+
+    function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+    function normalizeTimeToken(tok){ const m = tok.match(/(\d{1,2}(?::?\d{1,2})?-\d{1,2}(?::?\d{1,2})?)/); return m ? m[1] : tok; }
     function parseTimeRange(str){
       const m = normalizeTimeToken(str).match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
       if(!m) return null;
@@ -155,24 +214,19 @@
       const e = (tr.end > 17) || (tr.start >= 12);
       return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
     }
-
-    // === safe sort (iOS Safari locales) ===
     function safeSortByName(arr){
       const lang = getLang()==='he' ? 'he-IL' : 'ru-RU';
       try{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'', lang)); }
       catch{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
     }
 
-    // === DOCX read ===
+    // ===== DOCX read & parse =====
     async function extractTextFromDocx(file){
       const arrayBuffer = await file.arrayBuffer();
       const { value } = await window.mammoth.extractRawText({ arrayBuffer });
       return value.replace(/\u000b/g,'\n');
     }
-
-    // === detect week dates ===
     function findWeekDDMM(text){
-      // Ищем первую последовательность из 7 токенов dd-mm (каждый на своей строке тоже ок)
       const tokens = Array.from(text.matchAll(/\b(\d{1,2}-\d{1,2})\b/g)).map(m=>m[1]);
       for(let i=0;i+6<tokens.length;i++){
         const s=tokens.slice(i,i+7);
@@ -184,16 +238,12 @@
       const y=new Date().getFullYear();
       return ddmm.map(s=>{ const [d,m]=s.split('-').map(v=>parseInt(v,10)); return toISO(y,m,d); });
     }
-
-    // === token helpers ===
     function isShiftToken(t){
       if(!t) return false;
       const clean = t.trim();
       if(/^off$/i.test(clean) || /^p$/i.test(clean)) return true;
       return /(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/.test(clean);
     }
-
-    // взять 7 валидных токенов, двигая указатель по lines
     function takeSevenFrom(lines, startIdx){
       const out=[]; let i=startIdx;
       while(i<lines.length && out.length<7){
@@ -203,43 +253,34 @@
       }
       return out.length===7 ? { tokens: out, nextIndex: i } : null;
     }
-
-    // строка — кандидат на имя (буквы/пробелы/кавычки), без цифр/дефисов времени
     function looksLikeName(s){
       if(!s) return false;
-      if(/\d+-\d+/.test(s)) return false; // не допускать строки-времена
-      // заголовки секций часто очень короткие или содержат «—», «ערב/בוקר» и т.п.
+      if(/\d+-\d+/.test(s)) return false;
       if(/[–—\-]/.test(s) && s.length <= 6) return false;
-      // имя: минимум 2 буквы
       return /[\p{L}]{2,}/u.test(s);
     }
-
-    // === main parse ===
     function parseModelFromRawText(raw){
       const ddmm = findWeekDDMM(raw);
       if(ddmm.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
-      weekISO = buildWeekISOFromDDMM(ddmm);
+      const parsedWeek = buildWeekISOFromDDMM(ddmm);
 
       const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
-
       const rows=[];
       for(let i=0; i<lines.length; i++){
         const line = lines[i];
-
-        // пропускаем явные заголовки блоков (встречающиеся в шаблоне)
         if (/^(בוקר|ערב|לילה|אולם|לובי|קצביה|חלבי|אפיה|סנייק|סלטים)/.test(line)) continue;
         if (/^(קפה|ארוחת|מרקים|חמוצים|הפתעה)/.test(line)) continue;
-
         if(looksLikeName(line)){
           const result = takeSevenFrom(lines, i+1);
           if(result){
             rows.push({ name: line, values: result.tokens });
-            i = result.nextIndex - 1; // перескакиваем на конец блока 7 значений
+            i = result.nextIndex - 1;
           }
         }
       }
 
-      employees = rows.map(r=>{
+      // Сборка новых сотрудников
+      const parsedEmployees = rows.map(r=>{
         const shifts={};
         for(let d=0; d<7; d++){
           const cell=r.values[d];
@@ -248,20 +289,41 @@
           const tr = parseTimeRange(cell);
           shifts['d'+d] = tr ? assignShiftByTime(tr) : {m:true,e:true,timeM:'',timeE:''};
         }
-        return { name:r.name, backend:false, shifts };
+        return { name:r.name.trim(), backend:false, shifts };
       });
+
+      // MERGE: сохраняем уже существующих, если их нет в новом файле
+      const existingByName = new Map(employees.map(e=>[(e.name||'').trim(), e]));
+      const merged = [];
+      const boMap = new Map(employees.map(e=>[(e.name||'').trim(), !!e.backend]));
+      parsedEmployees.forEach(e=>{
+        if(boMap.has(e.name)) e.backend = boMap.get(e.name);
+        merged.push(e);
+      });
+      // добавим «ручных», которых нет в файле
+      employees.forEach(e=>{
+        const key=(e.name||'').trim();
+        if(!key) return;
+        if(!merged.find(x=> (x.name||'').trim()===key)){
+          merged.push(e);
+        }
+      });
+
+      weekISO = parsedWeek;
+      employees = merged;
+      saveAll();
     }
 
-    // === schedule + render ===
+    // ===== schedule & render =====
     function buildSchedule(){
-      const showBO = $('#showBO').checked;
+      const showBO = $('#toggleBO').checked; // показывать бек-офис?
       const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
       for(let empIndex=0; empIndex<employees.length; empIndex++){
         const emp = employees[empIndex]; if(!emp) continue;
-        if(!showBO && emp.backend) continue;
+        if(!showBO && emp.backend) continue; // скрыть, если отмечен как backoffice
         const name=(emp.name||'').trim();
         for(let i=0;i<7;i++){
-          const d=emp.shifts['d'+i]||{};
+          const d=emp.shifts?.['d'+i]||{};
           if(d.m) sched[i].morning.push({name, time: d.timeM||'', empIndex});
           if(d.e) sched[i].evening.push({name, time: d.timeE||'', empIndex});
         }
@@ -276,23 +338,64 @@
       for(let i=0;i<7;i++){
         const badge=document.createElement('label'); badge.className='badge';
         const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=exportDays[i];
-        cb.onchange=()=>{ exportDays[i]=cb.checked; localStorage.setItem('exportDays', JSON.stringify(exportDays)); };
+        cb.onchange=()=>{ exportDays[i]=cb.checked; saveAll(); };
         const txt=document.createElement('span'); txt.textContent=L.weekdaysFull[i];
         badge.appendChild(cb); badge.appendChild(txt); wrap.appendChild(badge);
       }
       const allB=document.createElement('button'); allB.className='btn ghost'; allB.textContent=L.all;
-      allB.onclick=()=>{ exportDays=[true,true,true,true,true,true,true]; localStorage.setItem('exportDays', JSON.stringify(exportDays)); renderDayPicker(); };
+      allB.onclick=()=>{ exportDays=[true,true,true,true,true,true,true]; saveAll(); renderDayPicker(); };
       wrap.appendChild(allB);
     }
 
-    function render(){
+    // кнопка добавления слота в день (editMode)
+    function renderAddRow(container, employeesList, dayIndex, part){
+      const L = I18N[getLang()];
+      const row = document.createElement('div'); row.className='addRow';
+
+      const sel = document.createElement('select');
+      employeesList.forEach((e, idx)=>{
+        const opt=document.createElement('option');
+        opt.value = String(idx);
+        opt.textContent = e.name || ('#'+(idx+1));
+        sel.appendChild(opt);
+      });
+
+      const time = document.createElement('input'); time.type='text'; time.placeholder='9-17 / 9:30-18';
+      const btn = document.createElement('button'); btn.className='btn'; btn.textContent=L.edit;
+      btn.onclick=()=>{
+        const empIndex = parseInt(sel.value,10);
+        const emp = employees[empIndex]; if(!emp) return;
+        const key='d'+dayIndex;
+        emp.shifts = emp.shifts || {};
+        emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
+        const tr = parseTimeRange(time.value.trim());
+        if(tr){
+          const res = assignShiftByTime(tr);
+          emp.shifts[key].m = res.m; emp.shifts[key].e = res.e;
+          emp.shifts[key].timeM = res.timeM; emp.shifts[key].timeE = res.timeE;
+        } else { // просто включим смену без времени
+          if(part==='m'){ emp.shifts[key].m=true; emp.shifts[key].timeM=''; }
+          else { emp.shifts[key].e=true; emp.shifts[key].timeE=''; }
+        }
+        saveAll(); renderAll();
+      };
+
+      row.appendChild(sel); row.appendChild(time); row.appendChild(btn);
+      container.appendChild(row);
+    }
+
+    function renderMain(){
       const L=I18N[getLang()];
-      document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
       const grid=$('#daysGrid'); grid.innerHTML='';
       if(!weekISO.length || !employees.length){
         const d=document.createElement('div'); d.className='note'; d.style.padding='10px'; d.textContent=L.noData; grid.appendChild(d); return;
       }
       const schedule = buildSchedule();
+      const edit = $('#editMode').checked;
+
+      // список сотрудников для выбора (отфильтруем, если скрыт backoffice)
+      const showBO = $('#toggleBO').checked;
+      const selectList = employees.filter(e=> showBO || !e.backend);
 
       for(let i=0;i<7;i++){
         const card=document.createElement('section'); card.className='day-card';
@@ -311,10 +414,25 @@
             const left=document.createElement('span'); left.className='li-text';
             left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
             li.appendChild(left);
+            if(edit){
+              const btn=document.createElement('button'); btn.className='btn.icon'; btn.textContent='×';
+              btn.onclick=()=>{
+                const emp = employees[p.empIndex]; const key='d'+i;
+                if(emp?.shifts?.[key]){ emp.shifts[key].m=false; emp.shifts[key].timeM=''; saveAll(); renderAll(); }
+              };
+              li.appendChild(btn);
+            }
             ol.appendChild(li);
           });
           secM.appendChild(ol);
         } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
+        if(edit){
+          const addWrap=document.createElement('div'); addWrap.className='addRow';
+          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent='+';
+          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, selectList, i, 'm'); };
+          secM.querySelector('h3').appendChild(addBtn);
+          secM.appendChild(addWrap);
+        }
 
         const secE=document.createElement('div'); secE.className='section';
         const titleE=document.createElement('h3'); titleE.textContent=L.evening; secE.appendChild(titleE);
@@ -326,21 +444,76 @@
             const left=document.createElement('span'); left.className='li-text';
             left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
             li.appendChild(left);
+            if(edit){
+              const btn=document.createElement('button'); btn.className='btn.icon'; btn.textContent='×';
+              btn.onclick=()=>{
+                const emp = employees[p.empIndex]; const key='d'+i;
+                if(emp?.shifts?.[key]){ emp.shifts[key].e=false; emp.shifts[key].timeE=''; saveAll(); renderAll(); }
+              };
+              li.appendChild(btn);
+            }
             ol.appendChild(li);
           });
           secE.appendChild(ol);
         } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
+        if(edit){
+          const addWrap=document.createElement('div'); addWrap.className='addRow';
+          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent='+';
+          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, selectList, i, 'e'); };
+          secE.querySelector('h3').appendChild(addBtn);
+          secE.appendChild(addWrap);
+        }
 
         card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
       }
     }
 
-    // === exports ===
+    function renderEmpManager(){
+      const L=I18N[getLang()];
+      const tbody = document.querySelector('#empTable tbody'); tbody.innerHTML='';
+      if(!employees.length){
+        const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=3; td.className='note'; td.textContent=L.noData; tr.appendChild(td); tbody.appendChild(tr); return;
+      }
+      employees.forEach((e, idx)=>{
+        const tr=document.createElement('tr');
+
+        // имя (редактируемое)
+        const tdName=document.createElement('td');
+        const inp=document.createElement('input'); inp.type='text'; inp.value=e.name||'';
+        inp.onchange=()=>{ e.name = inp.value.trim(); saveAll(); renderAll(); };
+        tdName.appendChild(inp);
+
+        // backoffice чекбокс
+        const tdBO=document.createElement('td');
+        const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!e.backend;
+        cb.onchange=()=>{ e.backend = cb.checked; saveAll(); renderMain(); };
+        tdBO.appendChild(cb);
+
+        // действия
+        const tdAct=document.createElement('td');
+        const rm=document.createElement('button'); rm.className='btn icon'; rm.textContent='×';
+        rm.title=L.remove; rm.onclick=()=>{ employees.splice(idx,1); saveAll(); renderAll(); };
+        tdAct.appendChild(rm);
+
+        tr.appendChild(tdName); tr.appendChild(tdBO); tr.appendChild(tdAct);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAll(){
+      renderDayPicker();
+      renderMain();
+      renderEmpManager();
+    }
+
+    // ===== exports =====
     function selectedIdx(){ const out=[]; for(let i=0;i<7;i++) if(exportDays[i]) out.push(i); return out; }
+    function buildScheduleForExport(){ return buildSchedule(); }
     function buildExportLines(){
-      const L=I18N[getLang()], schedule=buildSchedule(), lines=[];
+      const L=I18N[getLang()], schedule=buildScheduleForExport(), lines=[];
       const idx = selectedIdx();
+      if(!weekISO.length){ return lines; }
       for(const i of idx){
         lines.push(`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`);
         lines.push(`${L.morning}:`);
@@ -358,11 +531,11 @@
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
     btnTxt.addEventListener('click', ()=>{
-      if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
+      if(!weekISO.length){ alert('Сначала загрузите DOCX или добавьте сотрудников.'); return; }
       downloadBlob(buildExportLines().join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
     });
 
-    // DOCX (двухколоночные таблицы)
+    // DOCX экспорт (таблица на день)
     function makeDayTable(docxNS, L, dayData, isRTL){
       const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, ShadingType, BorderStyle } = docxNS;
       const cellHdr = (text)=> new TableCell({
@@ -392,7 +565,7 @@
       });
     }
     btnDocx.addEventListener('click', async ()=>{
-      if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
+      if(!weekISO.length){ alert('Сначала загрузите DOCX или добавьте сотрудников.'); return; }
       const L=I18N[getLang()], isRTL=(getLang()==='he');
       const schedule=buildSchedule(); const days=selectedIdx();
       const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation } = window.docx;
@@ -408,9 +581,9 @@
       const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='schedule.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     });
 
-    // PDF (html2pdf) — аккуратный макет, явный line-height
+    // PDF экспорт
     btnPdf.addEventListener('click', ()=>{
-      if(!weekISO.length){ alert('Сначала загрузите DOCX'); return; }
+      if(!weekISO.length){ alert('Сначала загрузите DOCX или добавьте сотрудников.'); return; }
       const L=I18N[getLang()], isRTL=(getLang()==='he');
       const schedule=buildSchedule(); const days=selectedIdx();
 
@@ -430,7 +603,7 @@
           const th=document.createElement('div'); th.textContent=titleTxt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='6px 8px'; th.style.fontWeight='700'; c.appendChild(th);
           const body=document.createElement('div'); body.style.border='1px solid #e8edf3'; body.style.padding='6px 8px';
           if(items.length){ items.forEach(t=>{ const line=document.createElement('div'); line.textContent=t; line.style.margin='2px 0'; body.appendChild(line); }); }
-          else { const empty=document.createElement('div'); empty.textContent='—'; empty.style.color='#999'; body.appendChild(empty); }
+          else { const empty=document.createElement('div'); empty.textContent='—'; empty.style.color = '#999'; body.appendChild(empty); }
           c.appendChild(body); return c;
         };
         const mLines=schedule[i].morning.map((p,idx)=>`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
@@ -448,33 +621,33 @@
       }).from(container).save();
     });
 
-    // file input
+    // ===== менеджер сотрудников: add / render =====
+    btnAddEmp.addEventListener('click', ()=>{
+      const name = (newEmpName.value||'').trim(); if(!name) return;
+      const backend = newEmpBO.checked;
+      const emptyShifts = {}; for(let i=0;i<7;i++) emptyShifts['d'+i]={m:false,e:false,timeM:'',timeE:''};
+      employees.push({ name, backend, shifts: emptyShifts });
+      newEmpName.value=''; newEmpBO.checked=false;
+      saveAll(); renderAll();
+    });
+
+    // ===== file input =====
     docxInput.addEventListener('change', async (e)=>{
       const file=e.target.files && e.target.files[0]; if(!file) return;
       try{
         const raw = await extractTextFromDocx(file);
-        parseModelFromRawText(raw);
-        // восстановление флажков backoffice по ранее сохранённым именам (если были)
-        const saved = JSON.parse(localStorage.getItem('employees')||'[]');
-        const boMap = new Map(saved.map(x=>[(x.name||'').trim(), !!x.backend]));
-        employees.forEach(emp=>{ if(boMap.has((emp.name||'').trim())) emp.backend = boMap.get((emp.name||'').trim()); });
-        renderDayPicker();
-        render();
+        parseModelFromRawText(raw); // merges + saves
+        renderAll();
       }catch(err){
         console.error(err);
         alert('Ошибка чтения/парсинга DOCX: '+err.message);
       }
     });
 
-    // local save
-    btnSaveLocal.addEventListener('click', ()=>{
-      if(!weekISO.length || !employees.length){ alert('Нет данных для сохранения. Загрузите DOCX.'); return; }
-      localStorage.setItem('weekDates', JSON.stringify(weekISO));
-      localStorage.setItem('employees', JSON.stringify(employees));
-      alert('Сохранено ✓');
-    });
-
-    // lang toggle
+    // toggles
+    $('#toggleBO').addEventListener('change', ()=>{ saveAll(); renderMain(); });
+    $('#editMode').addEventListener('change', ()=>{ renderMain(); });
+    $('#btnSaveLocal').addEventListener('click', ()=>{ saveAll(); alert('Сохранено ✓'); });
     $('#langToggle').addEventListener('click',(e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
 
     // init
@@ -483,9 +656,11 @@
       try{
         const wd=JSON.parse(localStorage.getItem('weekDates')||'[]');
         const em=JSON.parse(localStorage.getItem('employees')||'[]');
-        if(Array.isArray(wd)&&wd.length===7 && Array.isArray(em)&&em.length){ weekISO=wd; employees=em; }
+        if(Array.isArray(wd)&&wd.length===7) weekISO=wd;
+        if(Array.isArray(em)) employees=em;
       }catch{}
-      renderDayPicker(); render();
+      if(localStorage.getItem('showBackend')==='1') $('#toggleBO').checked = true; // совместимость со старой версией
+      renderAll();
     })();
   </script>
 </body>
