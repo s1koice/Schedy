@@ -33,7 +33,7 @@
     select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
   </style>
 
-  <!-- html2pdf for export -->
+  <!-- PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- Firebase compat SDKs -->
@@ -41,39 +41,32 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
-const firebaseConfig = {
-    apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
-    authDomain: "keen-berm-470615-h6.firebaseapp.com",
-    projectId: "keen-berm-470615-h6",  
-    storageBucket: "keen-berm-470615-h6.firebasestorage.app",
-    messagingSenderId: "772648903570",
-    appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
-    measurementId: "G-7VGNRGC0G7"
-  };
+    // ТВОЙ КОНФИГ (из Web App)
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
+      authDomain: "keen-berm-470615-h6.firebaseapp.com",
+      projectId: "keen-berm-470615-h6",
+      storageBucket: "keen-berm-470615-h6.firebasestorage.app",
+      messagingSenderId: "772648903570",
+      appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
+      measurementId: "G-7VGNRGC0G7"
+    };
     firebase.initializeApp(firebaseConfig);
     const auth=firebase.auth(); const db=firebase.firestore();
-    auth.signInAnonymously().catch(console.error);
-
-    // Автовыбор siteId: домен или "default"
-    const SITE_ID = (location.hostname || '').replace(/\./g,'-') || 'default';
+    // На главной можно читать и без логина (если правила allow read: if true)
+    const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
   </script>
 </head>
 <body>
   <header>
     <h1>סידור עבודה — ראשי</h1>
-    <nav>
-      <a href="settings.html">⚙️ הגדרות / Настройки</a>
-    </nav>
+    <nav><a href="settings.html">⚙️ הגדרות / Настройки</a></nav>
   </header>
 
   <main class="wrap">
     <section class="card">
       <div class="row" style="justify-content:space-between">
-        <div class="row">
-          <label class="row" style="gap:8px">
-            <input type="checkbox" id="showBO"> <span>להציג בק־אופיס</span>
-          </label>
-        </div>
+        <label class="row" style="gap:8px"><input type="checkbox" id="showBO"> להציג בק־אופיס</label>
         <div class="row">
           <button class="btn ghost" id="btnPdf">Export PDF</button>
           <span class="note" id="status">…</span>
@@ -84,13 +77,10 @@ const firebaseConfig = {
 
     <section class="card">
       <strong>הוספה מהירה ליום</strong>
-      <div class="note">Можно быстро добавить сотрудника в конкретный день и смену (утро/вечер). Сохранится сразу в облаке.</div>
+      <div class="note">Быстро добавить сотрудника в конкретный день/смену. Сохраняется сразу в облаке.</div>
       <div class="addRow">
         <select id="daySel"></select>
-        <select id="partSel">
-          <option value="m">בוקר</option>
-          <option value="e">ערב</option>
-        </select>
+        <select id="partSel"><option value="m">בוקר</option><option value="e">ערב</option></select>
         <input type="text" id="nameQuick" placeholder="Имя / שם">
         <input type="text" id="timeQuick" placeholder="9-12 / 17-22 (опц.)">
         <button class="btn" id="btnQuickAdd">+</button>
@@ -99,215 +89,174 @@ const firebaseConfig = {
   </main>
 
   <script>
-    // ===== Model (синхронизируется с Firestore) =====
-    let weekISO = [];       // ['YYYY-MM-DD' x7]
-    // shifts по сотруднику храним как массивы интервалов на день: shifts.d0 = [ {start,end,text} , ... ]
-    // backoffice: true/false
-    let employees = [];     // [{name, backend, shifts:{d0:[],...,d6:[]}}]
+    // ===== модель =====
+    let weekISO=[]; // ['YYYY-MM-DD' x7]
+    // employees: [{name, backend, shifts:{ d0:[{start,end,text}], ..., d6:[...] }}]
+    let employees=[];
 
-    // ——— утилиты времени + классификация
+    const COL='schedules';
     function parseOneRange(s){
-      const m = s.trim().match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
+      const m = (s||'').trim().match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
       if(!m) return null;
       const [,h1,mi1,h2,mi2]=m;
-      const sh = +h1 + (mi1?+mi1:0)/60;
-      const eh = +h2 + (mi2?+mi2:0)/60;
-      const txt = `${+h1}${mi1?':'+String(+mi1).padStart(2,'0'):''}-${+h2}${mi2?':'+String(+mi2).padStart(2,'0'):''}`;
+      const sh=+h1+(mi1?+mi1:0)/60, eh=+h2+(mi2?+mi2:0)/60;
+      const txt=`${+h1}${mi1?':'+String(+mi1).padStart(2,'0'):''}-${+h2}${mi2?':'+String(+mi2).padStart(2,'0'):''}`;
       return {start:sh,end:eh,text:txt};
     }
-    function splitRanges(cell){
-      // принимает строку "9-12, 17-22" или "9-12 17-22" → массив диапазонов
-      if(!cell) return [];
-      return cell.split(/[,\s]+/).map(parseOneRange).filter(Boolean);
-    }
-    function bucketByPart(r){ // вернуть 'm' | 'e' | null
-      if(r.start < 11) return 'm';
-      if(r.end > 17 || r.start >= 12) return 'e';
-      return null;
-    }
+    function splitRanges(cell){ return (cell||'').split(/[,\s]+/).map(parseOneRange).filter(Boolean); }
+    function bucketByPart(r){ if(r.start<11) return 'm'; if(r.end>17||r.start>=12) return 'e'; return null; }
 
-    // ——— Firestore I/O
-    const COL='schedules';
     async function loadCloud(){
-      document.getElementById('status').textContent='Loading…';
-      const snap = await db.collection(COL).doc(SITE_ID).get();
-      if(snap.exists){
-        const data=snap.data()||{};
-        if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
-        if(Array.isArray(data.employees)) employees=data.employees;
-        document.getElementById('status').textContent='Loaded ✓';
-      } else {
-        document.getElementById('status').textContent='No data (open Settings)';
+      status.textContent='Loading…';
+      try{
+        const snap=await db.collection(COL).doc(SITE_ID).get();
+        if(snap.exists){
+          const data=snap.data()||{};
+          if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
+          if(Array.isArray(data.employees)) employees=data.employees;
+          status.textContent='Loaded ✓';
+        } else {
+          status.textContent='No data (open Settings)';
+        }
+        renderAll();
+      }catch(err){
+        status.textContent='Read error';
+        alert('Ошибка чтения Firestore:\n'+(err.message||err.code||String(err)));
       }
-      renderAll();
     }
     let saveTimer=null;
     function autoSave(){
       clearTimeout(saveTimer);
       saveTimer=setTimeout(async ()=>{
-        document.getElementById('status').textContent='Saving…';
-        await db.collection(COL).doc(SITE_ID).set({weekISO,employees,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-        document.getElementById('status').textContent='Saved ✓';
-      }, 300);
+        try{
+          status.textContent='Saving…';
+          await db.collection(COL).doc(SITE_ID).set({weekISO,employees,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+          status.textContent='Saved ✓';
+        }catch(err){
+          status.textContent='Save error';
+          alert('Ошибка сохранения:\n'+(err.message||err.code||String(err)));
+        }
+      },300);
     }
 
-    // ——— построение расписания по дням
     function buildDay(i){
-      const day={m:[], e:[]}; // элементы: {name,time}
-      employees.forEach((emp, empIndex)=>{
-        if(emp.backend===true && !document.getElementById('showBO').checked) return;
-        const arr = (emp.shifts && emp.shifts['d'+i]) || [];
+      const day={m:[],e:[]};
+      employees.forEach((emp,empIndex)=>{
+        if(emp.backend && !showBO.checked) return;
+        const arr=(emp.shifts && emp.shifts['d'+i])||[];
         arr.forEach(r=>{
-          const bucket = bucketByPart(r);
-          if(bucket==='m') day.m.push({name:emp.name,time:r.text, empIndex});
-          if(bucket==='e') day.e.push({name:emp.name,time:r.text, empIndex});
+          const b=bucketByPart(r);
+          if(b==='m') day.m.push({name:emp.name,time:r.text,empIndex});
+          if(b==='e') day.e.push({name:emp.name,time:r.text,empIndex});
         });
       });
-      // сортируем по имени
       day.m.sort((a,b)=>a.name.localeCompare(b.name,'he-IL'));
       day.e.sort((a,b)=>a.name.localeCompare(b.name,'he-IL'));
       return day;
     }
 
     function renderAll(){
-      // селект дней для быстрого добавления
-      const ds=document.getElementById('daySel'); ds.innerHTML='';
-      weekISO.forEach((iso, i)=>{
+      // селект дней
+      daySel.innerHTML='';
+      weekISO.forEach((iso,i)=>{
         const o=document.createElement('option'); o.value=String(i);
-        const d=new Date(iso).toLocaleDateString('he-IL');
-        const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-        o.textContent = `${weekdaysFull[i]} — ${d}`;
-        ds.appendChild(o);
+        o.textContent=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][i]+' — '+new Date(iso).toLocaleDateString('he-IL');
+        daySel.appendChild(o);
       });
 
-      const grid=document.getElementById('grid'); grid.innerHTML='';
-      if(weekISO.length!==7){ grid.innerHTML='<div class="note">Нет данных. Зайдите в страницу настроек.</div>'; return; }
-
-      const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+      grid.innerHTML='';
+      if(weekISO.length!==7){ grid.innerHTML='<div class="note">Нет данных. Зайдите в настройки.</div>'; return; }
       for(let i=0;i<7;i++){
         const day=buildDay(i);
         const card=document.createElement('div'); card.className='day';
         const head=document.createElement('div'); head.className='head';
-        const dow=document.createElement('div'); dow.className='dow'; dow.textContent=weekdaysFull[i];
-        const date=document.createElement('div'); date.className='date'; date.textContent=new Date(weekISO[i]).toLocaleDateString('he-IL');
-        head.appendChild(dow); head.appendChild(date); card.appendChild(head);
+        head.innerHTML=`<div class="dow">${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][i]}</div>
+                        <div class="date">${new Date(weekISO[i]).toLocaleDateString('he-IL')}</div>`;
+        card.appendChild(head);
 
-        const secM=document.createElement('div'); secM.className='section'; const h3m=document.createElement('h3'); h3m.textContent='בוקר'; secM.appendChild(h3m);
+        const secM=document.createElement('div'); secM.className='section'; secM.innerHTML='<h3>בוקר</h3>';
         if(day.m.length){
           const ol=document.createElement('ol');
           day.m.forEach((p,idx)=>{
             const li=document.createElement('li');
             const span=document.createElement('span'); span.className='li-txt';
             span.innerHTML=`<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
-            li.appendChild(span);
-            // удалить прямо с главной
-            const del=document.createElement('button'); del.className='btn.icon'; del.textContent='×';
+            const del=document.createElement('button'); del.className='btn icon'; del.textContent='×';
             del.onclick=()=>{
               const key='d'+i;
               const arr=employees[p.empIndex].shifts[key]||[];
-              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='m' || r.text!==p.time);
+              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='m'||r.text!==p.time);
               autoSave(); renderAll();
             };
-            li.appendChild(del);
-            ol.appendChild(li);
+            li.appendChild(span); li.appendChild(del); ol.appendChild(li);
           });
           secM.appendChild(ol);
-        } else {
-          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em);
-        }
+        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
         card.appendChild(secM);
 
-        const secE=document.createElement('div'); secE.className='section'; const h3e=document.createElement('h3'); h3e.textContent='ערב'; secE.appendChild(h3e);
+        const secE=document.createElement('div'); secE.className='section'; secE.innerHTML='<h3>ערב</h3>';
         if(day.e.length){
           const ol=document.createElement('ol');
           day.e.forEach((p,idx)=>{
             const li=document.createElement('li');
             const span=document.createElement('span'); span.className='li-txt';
             span.innerHTML=`<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
-            li.appendChild(span);
-            const del=document.createElement('button'); del.className='btn.icon'; del.textContent='×';
+            const del=document.createElement('button'); del.className='btn icon'; del.textContent='×';
             del.onclick=()=>{
               const key='d'+i;
               const arr=employees[p.empIndex].shifts[key]||[];
-              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='e' || r.text!==p.time);
+              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='e'||r.text!==p.time);
               autoSave(); renderAll();
             };
-            li.appendChild(del);
-            ol.appendChild(li);
+            li.appendChild(span); li.appendChild(del); ol.appendChild(li);
           });
           secE.appendChild(ol);
-        } else {
-          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em);
-        }
+        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
         card.appendChild(secE);
 
         grid.appendChild(card);
       }
     }
 
-    // Быстрое добавление
-    document.getElementById('btnQuickAdd').onclick=()=>{
-      const dayIdx=+document.getElementById('daySel').value;
-      const part=document.getElementById('partSel').value; // 'm'|'e'
-      const name=(document.getElementById('nameQuick').value||'').trim();
-      const time=(document.getElementById('timeQuick').value||'').trim();
+    btnQuickAdd.onclick=()=>{
+      const dayIdx=+daySel.value, part=partSel.value;
+      const name=(nameQuick.value||'').trim(), time=(timeQuick.value||'').trim();
       if(!name){ alert('Введите имя'); return; }
-      let emp = employees.find(e=> (e.name||'').trim()===name);
-      if(!emp){
-        emp={name, backend:false, shifts:{}};
-        for(let i=0;i<7;i++) emp.shifts['d'+i]=[];
-        employees.push(emp);
-      }
-      const key='d'+dayIdx;
-      emp.shifts[key]=emp.shifts[key]||[];
-      if(time){
-        const ranges = splitRanges(time);
-        ranges.forEach(r=>{
-          const b=bucketByPart(r);
-          if(b===part) emp.shifts[key].push(r);
-        });
-      } else {
-        // без времени — создадим «техническую» запись с классификацией по part
-        if(part==='m') emp.shifts[key].push({start:9,end:12,text:'9-12'});
-        else emp.shifts[key].push({start:18,end:22,text:'18-22'});
-      }
-      document.getElementById('nameQuick').value='';
-      document.getElementById('timeQuick').value='';
+      let emp=employees.find(e=>(e.name||'').trim()===name);
+      if(!emp){ emp={name,backend:false,shifts:{}}; for(let i=0;i<7;i++) emp.shifts['d'+i]=[]; employees.push(emp); }
+      const key='d'+dayIdx; emp.shifts[key]=emp.shifts[key]||[];
+      if(time){ splitRanges(time).forEach(r=>{ if((part==='m'&&bucketByPart(r)==='m')||(part==='e'&&bucketByPart(r)==='e')) emp.shifts[key].push(r); }); }
+      else { emp.shifts[key].push(part==='m'?{start:9,end:12,text:'9-12'}:{start:18,end:22,text:'18-22'}); }
+      nameQuick.value=''; timeQuick.value='';
       autoSave(); renderAll();
     };
 
-    // показать/скрыть backoffice
-    document.getElementById('showBO').onchange = ()=> renderAll();
+    showBO.onchange=()=>renderAll();
 
-    // PDF экспорт
-    document.getElementById('btnPdf').onclick=()=>{
-      if(weekISO.length!==7){ alert('Нет данных для экспорта'); return; }
-      const container=document.createElement('div');
-      container.style.padding='16px'; container.style.fontFamily='Arial, Helvetica, sans-serif';
+    btnPdf.onclick=()=>{
+      if(weekISO.length!==7){ alert('Нет данных'); return; }
+      const container=document.createElement('div'); container.style.padding='16px'; container.style.fontFamily='Arial,Helvetica,sans-serif';
       const title=document.createElement('h2'); title.textContent='סידור עבודה'; title.style.textAlign='center'; container.appendChild(title);
-      const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
       for(let i=0;i<7;i++){
         const block=document.createElement('div'); block.style.border='1px solid #e6e6e6'; block.style.borderRadius='10px'; block.style.padding='10px'; block.style.marginBottom='10px'; block.style.background='#fff';
-        const h=document.createElement('h3'); h.textContent=`${weekdaysFull[i]} — ${new Date(weekISO[i]).toLocaleDateString('he-IL')}`; h.style.margin='0 0 6px'; block.appendChild(h);
+        const h=document.createElement('h3'); h.textContent=`${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][i]} — ${new Date(weekISO[i]).toLocaleDateString('he-IL')}`; h.style.margin='0 0 6px';
         const day=buildDay(i);
         const two=document.createElement('div'); two.style.display='flex'; two.style.gap='10px';
-        function col(tt, arr){
+        function col(tt,arr){
           const c=document.createElement('div'); c.style.flex='1';
-          const th=document.createElement('div'); th.textContent=tt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='5px 7px'; th.style.fontWeight='700'; c.appendChild(th);
+          const th=document.createElement('div'); th.textContent=tt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='5px 7px'; th.style.fontWeight='700';
           const body=document.createElement('div'); body.style.border='1px solid #e8edf3'; body.style.padding='5px 7px';
-          if(arr.length){
-            arr.forEach((p,idx)=>{ const line=document.createElement('div'); line.textContent=`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`; line.style.margin='2px 0'; body.appendChild(line); });
-          } else { const empty=document.createElement('div'); empty.textContent='—'; empty.style.color='#999'; body.appendChild(empty); }
-          c.appendChild(body); return c;
+          if(arr.length){ arr.forEach((p,idx)=>{ const line=document.createElement('div'); line.textContent=`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`; body.appendChild(line); }); }
+          else { const d=document.createElement('div'); d.textContent='—'; d.style.color='#999'; body.appendChild(d); }
+          c.appendChild(th); c.appendChild(body); return c;
         }
         two.appendChild(col('בוקר',day.m)); two.appendChild(col('ערב',day.e));
-        block.appendChild(two); container.appendChild(block);
+        block.appendChild(h); block.appendChild(two); container.appendChild(block);
       }
       html2pdf().set({margin:10,filename:'schedule.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(container).save();
     };
 
-    // init
-    auth.onAuthStateChanged(u=>{ if(u) loadCloud(); });
+    loadCloud();
   </script>
 </body>
 </html>
