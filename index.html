@@ -2,64 +2,45 @@
 <html lang="he">
 <head>
   <meta charset="utf-8" />
-  <title>סידור עבודה – DOCX + Cloud</title>
+  <title>סידור עבודה — ראשי</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
   <style>
     :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
-    header{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px 20px;flex-wrap:wrap}
-    header h1{font-size:20px;margin:0}
-    header nav a{color:var(--accent);text-decoration:none;margin-inline-start:14px}
-    .bar{height:1px;background:var(--line)}
-    .wrap{padding:16px 20px;display:flex;flex-direction:column;gap:12px}
-
-    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:14px}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;flex-wrap:wrap}
+    header h1{font-size:18px;margin:0}
+    header nav a{color:var(--accent);text-decoration:none}
+    .wrap{padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:12px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .note{color:var(--muted);font-size:12px}
     .btn{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
     .btn.ghost{background:#eef4ff;color:#1a73e8}
     .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
-    input[type="file"]{display:none}
-    .filelabel{display:inline-flex;align-items:center;gap:10px;border:1px dashed var(--line);padding:10px 14px;border-radius:12px;background:#fff;cursor:pointer}
-    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    select,input[type="text"],input[type="search"]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
-
-    .grid{display:flex;gap:16px;padding:16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .day-card{flex:0 0 320px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 4px 16px rgba(0,0,0,.06);border:1px solid var(--line)}
-    .day-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
-    .day-head .dow{font-weight:700}
-    .day-head .date{color:var(--muted);font-size:14px}
-    .section{margin-top:10px}
-    .section h3{font-size:14px;margin:0 0 8px 0;color:#333;display:flex;align-items:center;justify-content:space-between}
-    ol{margin:0;padding:0;list-style:none}
-    li{padding:2px 0;display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .li-text{flex:1}
-    .li-num{opacity:.7; min-width:2.4em}
-    .empty{color:var(--muted);font-style:italic}
-    .addRow{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
-
-    /* менеджер сотрудников */
-    .emp-table{width:100%;border-collapse:collapse;margin-top:8px}
-    .emp-table th,.emp-table td{border-bottom:1px solid var(--line);padding:6px 4px;font-size:13px}
-    .emp-table th{color:#333;text-align:left}
-    .emp-table input[type="text"]{width:100%}
+    .note{font-size:12px;color:var(--muted)}
+    .grid{display:flex;gap:16px;overflow-x:auto;padding:8px 0}
+    .day{flex:0 0 320px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+    .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+    .head .dow{font-weight:700}
+    .head .date{font-size:14px;color:#666}
+    .section{margin-top:8px}
+    .section h3{margin:0 0 6px;font-size:14px}
+    ol{list-style:none;margin:0;padding:0}
+    li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0}
+    .li-txt{flex:1}
+    .li-num{opacity:.7;min-width:2.4em}
+    .empty{color:#999;font-style:italic}
+    .addRow{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
+    select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
   </style>
 
-  <!-- DOCX → text -->
-  <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
-  <!-- DOCX export -->
-  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
-  <!-- HTML → PDF -->
+  <!-- html2pdf for export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-  <!-- Firebase SDK (compat) -->
+  <!-- Firebase compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <script>
-    // !!! ЗАМЕНИТЕ при необходимости на свой конфиг из Firebase Console → Project settings → Web app
     const firebaseConfig = {
       apiKey: "AIzaSyAZf40tkbsHSp4bxZumIyznHcd8q_oYTKc",
       authDomain: "schedy-6f2ee.firebaseapp.com",
@@ -70,626 +51,263 @@
       measurementId: "G-Z95Q255L5L"
     };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db   = firebase.firestore();
+    const auth=firebase.auth(); const db=firebase.firestore();
     auth.signInAnonymously().catch(console.error);
+
+    // Автовыбор siteId: домен или "default"
+    const SITE_ID = (location.hostname || '').replace(/\./g,'-') || 'default';
   </script>
 </head>
-
 <body>
   <header>
-    <h1 id="t_title">סידור עבודה (DOCX + Cloud)</h1>
+    <h1>סידור עבודה — ראשי</h1>
     <nav>
-      <a href="#" id="langToggle">Русский</a>
+      <a href="settings.html">⚙️ הגדרות / Настройки</a>
     </nav>
   </header>
-  <div class="bar"></div>
 
   <main class="wrap">
-    <!-- верхняя панель -->
-    <section class="card">
-      <div class="row">
-        <label class="filelabel" for="docxInput" id="t_uploadLabel">בחר/ите DOCX עם графиком</label>
-        <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-        <div class="controls">
-          <label class="filelabel" style="border-style:solid">
-            <input type="checkbox" id="toggleBO" />
-            <span id="t_showBO">להציג בק־אופיס</span>
-          </label>
-          <label class="filelabel" style="border-style:solid">
-            <input type="checkbox" id="editMode" />
-            <span id="t_edit">עריכה</span>
-          </label>
-          <button class="btn ghost" id="btnSaveLocal">שמירה במכשיר</button>
-        </div>
-      </div>
-
-      <!-- Cloud Save/Load -->
-      <div class="controls">
-        <input id="cloudSiteId" type="text" placeholder="Site ID (напр. cafe-yafo)" style="min-width:220px">
-        <button class="btn ghost" id="cloudLoad">Load</button>
-        <button class="btn" id="cloudSave">Save</button>
-        <span id="cloudStatus" class="note"></span>
-      </div>
-
-      <div class="note" id="t_hint">
-        פורמט: 7 תאריכים dd-mm ברצף, אחריהם לכל עובד 7 ערכים (OFF / P / 9-21 / 9:30-22 ...). בוקר = התחלה לפני 11:00. הערות אחרי הזמן נחתכות.
-      </div>
-    </section>
-
-    <!-- выбор дней и экспорт -->
     <section class="card">
       <div class="row" style="justify-content:space-between">
-        <div class="controls" id="dayPicker"></div>
-        <div class="controls">
-          <button class="btn ghost" id="btnTxt">TXT</button>
-          <button class="btn ghost" id="btnDocx">DOCX</button>
-          <button class="btn ghost" id="btnPdf">PDF</button>
-        </div>
-      </div>
-      <div class="grid" id="daysGrid"></div>
-    </section>
-
-    <!-- менеджер сотрудников -->
-    <section class="card">
-      <div class="row" style="justify-content:space-between">
-        <strong id="t_empManagerTitle">ניהול עובדים</strong>
         <div class="row">
-          <input type="text" id="newEmpName" placeholder="Имя / שם" />
-          <label class="filelabel" style="border-style:solid">
-            <input type="checkbox" id="newEmpBO" /> <span id="t_isBO">Backoffice</span>
+          <label class="row" style="gap:8px">
+            <input type="checkbox" id="showBO"> <span>להציג בק־אופיס</span>
           </label>
-          <button class="btn" id="btnAddEmp">+ <span id="t_addEmp">Добавить</span></button>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="btnPdf">Export PDF</button>
+          <span class="note" id="status">…</span>
         </div>
       </div>
+      <div class="grid" id="grid"></div>
+    </section>
 
-      <table class="emp-table" id="empTable">
-        <thead>
-          <tr>
-            <th id="t_empName">Имя</th>
-            <th id="t_empBO">Backoffice</th>
-            <th id="t_empActions">Действия</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div class="note" id="t_empNote">Изменения сохраняются автоматически. Отмеченных Backoffice можно скрыть переключателем сверху.</div>
+    <section class="card">
+      <strong>הוספה מהירה ליום</strong>
+      <div class="note">Можно быстро добавить сотрудника в конкретный день и смену (утро/вечер). Сохранится сразу в облаке.</div>
+      <div class="addRow">
+        <select id="daySel"></select>
+        <select id="partSel">
+          <option value="m">בוקר</option>
+          <option value="e">ערב</option>
+        </select>
+        <input type="text" id="nameQuick" placeholder="Имя / שם">
+        <input type="text" id="timeQuick" placeholder="9-12 / 17-22 (опц.)">
+        <button class="btn" id="btnQuickAdd">+</button>
+      </div>
     </section>
   </main>
 
   <script>
-    /* ========================== i18n ========================== */
-    const I18N = {
-      he: {
-        _dir:'rtl',
-        title:'סידור עבודה (DOCX + Cloud)',
-        upload:'בחר קובץ DOCX',
-        showBO:'להציג בק־אופיס',
-        edit:'עריכה',
-        hint:'פורמט: 7 תאריכים dd-mm ברצף, אחריהם לכל עובד 7 ערכים (OFF / P / 9-21 / 9:30-22 ...). בוקר = התחלה לפני 11:00.',
-        morning:'בוקר', evening:'ערב',
-        weekdaysFull:['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'],
-        fmt:(iso)=> new Date(iso).toLocaleDateString('he-IL'),
-        chooseDays:'בחר ימים',
-        all:'הכול',
-        saveLocal:'שמירה במכשיר',
-        txt:'TXT', docx:'DOCX', pdf:'PDF',
-        noData:'אין נתונים להצגה. העלו קובץ DOCX או הוסיפו עובדים ידנית.',
-        empManagerTitle:'ניהול עובדים',
-        addEmp:'הוסף',
-        empName:'שם',
-        empBO:'בק־אופיס',
-        empActions:'פעולות',
-        empNote:'השינויים נשמרים אוטומטית. ניתן להסתיר בק־אופיס על ידי המתג למעלה.',
-        remove:'הסר',
-      },
-      ru: {
-        _dir:'ltr',
-        title:'График (DOCX + Cloud)',
-        upload:'Выберите DOCX',
-        showBO:'Показывать Backoffice',
-        edit:'Редактировать',
-        hint:'Формат: 7 дат dd-mm подряд, затем 7 значений (OFF / P / 9-21 / 9:30-22 ...). Утро = старт раньше 11:00.',
-        morning:'Утро', evening:'Вечер',
-        weekdaysFull:['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'],
-        fmt:(iso)=> new Date(iso).toLocaleDateString('ru-RU'),
-        chooseDays:'Выберите дни',
-        all:'Все',
-        saveLocal:'Сохранить на устройстве',
-        txt:'TXT', docx:'DOCX', pdf:'PDF',
-        noData:'Нет данных. Загрузите DOCX или добавьте сотрудников вручную.',
-        empManagerTitle:'Менеджер сотрудников',
-        addEmp:'Добавить',
-        empName:'Имя',
-        empBO:'Backoffice',
-        empActions:'Действия',
-        empNote:'Изменения сохраняются автоматически. Отмеченных Backoffice можно скрыть переключателем сверху.',
-        remove:'Удалить',
-      }
-    };
-    function getLang(){ return localStorage.getItem('lang')||'he'; }
-    function setLang(l){ localStorage.setItem('lang',l); applyLang(); renderAll(); }
-    function applyLang(){
-      const L=I18N[getLang()];
-      document.documentElement.dir=L._dir; document.documentElement.lang=getLang();
-      t_title.textContent=L.title;
-      t_uploadLabel.textContent=L.upload;
-      t_showBO.textContent=L.showBO;
-      t_edit.textContent=L.edit;
-      t_hint.textContent=L.hint;
-      btnSaveLocal.textContent=L.saveLocal;
-      btnTxt.textContent=L.txt; btnDocx.textContent=L.docx; btnPdf.textContent=L.pdf;
-      langToggle.textContent=(getLang()==='he'?'Русский':'עברית');
-      t_empManagerTitle.textContent=L.empManagerTitle;
-      t_addEmp.textContent=L.addEmp;
-      t_empName.textContent=L.empName;
-      t_empBO.textContent=L.empBO;
-      t_empActions.textContent=L.empActions;
-      t_empNote.textContent=L.empNote;
-    }
+    // ===== Model (синхронизируется с Firestore) =====
+    let weekISO = [];       // ['YYYY-MM-DD' x7]
+    // shifts по сотруднику храним как массивы интервалов на день: shifts.d0 = [ {start,end,text} , ... ]
+    // backoffice: true/false
+    let employees = [];     // [{name, backend, shifts:{d0:[],...,d6:[]}}]
 
-    /* ========================== state & helpers ========================== */
-    let weekISO = [];      // [ 'YYYY-MM-DD' x7 ]
-    let employees = [];    // [ { name, backend:false, shifts:{d0..d6:{m,e,timeM,timeE}} } ]
-    let exportDays = JSON.parse(localStorage.getItem('exportDays')||'[true,true,true,true,true,true,true]');
-    const $=s=>document.querySelector(s);
-
-    function saveAll(){
-      localStorage.setItem('weekDates', JSON.stringify(weekISO));
-      localStorage.setItem('employees', JSON.stringify(employees));
-      localStorage.setItem('exportDays', JSON.stringify(exportDays));
-    }
-    function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
-    function normalizeTimeToken(tok){ const m = tok.match(/(\d{1,2}(?::?\d{1,2})?-\d{1,2}(?::?\d{1,2})?)/); return m ? m[1] : tok; }
-    function parseTimeRange(str){
-      const m = normalizeTimeToken(str).match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
+    // ——— утилиты времени + классификация
+    function parseOneRange(s){
+      const m = s.trim().match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
       if(!m) return null;
-      const [,h1,mi1,h2,mi2] = m; const sH=+h1, sM=mi1?+mi1:0, eH=+h2, eM=mi2?+mi2:0;
-      return {start:sH+sM/60, end:eH+eM/60, text:`${sH}${sM?':'+String(sM).padStart(2,'0'):''}-${eH}${eM?':'+String(eM).padStart(2,'0'):''}`};
+      const [,h1,mi1,h2,mi2]=m;
+      const sh = +h1 + (mi1?+mi1:0)/60;
+      const eh = +h2 + (mi2?+mi2:0)/60;
+      const txt = `${+h1}${mi1?':'+String(+mi1).padStart(2,'0'):''}-${+h2}${mi2?':'+String(+mi2).padStart(2,'0'):''}`;
+      return {start:sh,end:eh,text:txt};
     }
-    function assignShiftByTime(tr){
-      if(!tr) return {m:false,e:false,timeM:'',timeE:''};
-      const m = (tr.start < 11);
-      const e = (tr.end > 17) || (tr.start >= 12);
-      return { m, e, timeM: m ? tr.text : '', timeE: e ? tr.text : '' };
+    function splitRanges(cell){
+      // принимает строку "9-12, 17-22" или "9-12 17-22" → массив диапазонов
+      if(!cell) return [];
+      return cell.split(/[,\s]+/).map(parseOneRange).filter(Boolean);
     }
-    function safeSortByName(arr){
-      const lang = getLang()==='he' ? 'he-IL' : 'ru-RU';
-      try{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'', lang)); }
-      catch{ arr.sort((a,b)=>(a.name||'').localeCompare(b.name||'')); }
+    function bucketByPart(r){ // вернуть 'm' | 'e' | null
+      if(r.start < 11) return 'm';
+      if(r.end > 17 || r.start >= 12) return 'e';
+      return null;
     }
 
-    /* ========================== DOCX read & parse ========================== */
-    async function extractTextFromDocx(file){
-      const arrayBuffer = await file.arrayBuffer();
-      const { value } = await window.mammoth.extractRawText({ arrayBuffer });
-      return value.replace(/\u000b/g,'\n');
-    }
-    function findWeekDDMM(text){
-      const tokens = Array.from(text.matchAll(/\b(\d{1,2}-\d{1,2})\b/g)).map(m=>m[1]);
-      for(let i=0;i+6<tokens.length;i++){
-        const s=tokens.slice(i,i+7);
-        if(s.every(x=>{const [d,m]=x.split('-').map(Number); return d>=1&&d<=31&&m>=1&&m<=12;})) return s;
+    // ——— Firestore I/O
+    const COL='schedules';
+    async function loadCloud(){
+      document.getElementById('status').textContent='Loading…';
+      const snap = await db.collection(COL).doc(SITE_ID).get();
+      if(snap.exists){
+        const data=snap.data()||{};
+        if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
+        if(Array.isArray(data.employees)) employees=data.employees;
+        document.getElementById('status').textContent='Loaded ✓';
+      } else {
+        document.getElementById('status').textContent='No data (open Settings)';
       }
-      return [];
+      renderAll();
     }
-    function buildWeekISOFromDDMM(ddmm){
-      const y=new Date().getFullYear();
-      return ddmm.map(s=>{ const [d,m]=s.split('-').map(v=>parseInt(v,10)); return toISO(y,m,d); });
+    let saveTimer=null;
+    function autoSave(){
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(async ()=>{
+        document.getElementById('status').textContent='Saving…';
+        await db.collection(COL).doc(SITE_ID).set({weekISO,employees,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        document.getElementById('status').textContent='Saved ✓';
+      }, 300);
     }
-    function isShiftToken(t){
-      if(!t) return false;
-      const clean = t.trim();
-      if(/^off$/i.test(clean) || /^p$/i.test(clean)) return true;
-      return /(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/.test(clean);
-    }
-    function takeSevenFrom(lines, startIdx){
-      const out=[]; let i=startIdx;
-      while(i<lines.length && out.length<7){
-        const tok = lines[i].trim();
-        if(isShiftToken(tok)) out.push(tok);
-        i++;
-      }
-      return out.length===7 ? { tokens: out, nextIndex: i } : null;
-    }
-    function looksLikeName(s){
-      if(!s) return false;
-      if(/\d+-\d+/.test(s)) return false;
-      if(/[–—\-]/.test(s) && s.length <= 6) return false;
-      return /[\p{L}]{2,}/u.test(s);
-    }
-    function parseModelFromRawText(raw){
-      const ddmm = findWeekDDMM(raw);
-      if(ddmm.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
-      const parsedWeek = buildWeekISOFromDDMM(ddmm);
 
-      const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(s=>s.length>0);
-      const rows=[];
-      for(let i=0; i<lines.length; i++){
-        const line = lines[i];
-        if (/^(בוקר|ערב|לילה|אולם|לובי|קצביה|חלבי|אפיה|סנייק|סלטים)/.test(line)) continue;
-        if (/^(קפה|ארוחת|מרקים|חמוצים|הפתעה)/.test(line)) continue;
-        if(looksLikeName(line)){
-          const result = takeSevenFrom(lines, i+1);
-          if(result){ rows.push({ name: line, values: result.tokens }); i = result.nextIndex - 1; }
-        }
-      }
+    // ——— построение расписания по дням
+    function buildDay(i){
+      const day={m:[], e:[]}; // элементы: {name,time}
+      employees.forEach((emp, empIndex)=>{
+        if(emp.backend===true && !document.getElementById('showBO').checked) return;
+        const arr = (emp.shifts && emp.shifts['d'+i]) || [];
+        arr.forEach(r=>{
+          const bucket = bucketByPart(r);
+          if(bucket==='m') day.m.push({name:emp.name,time:r.text, empIndex});
+          if(bucket==='e') day.e.push({name:emp.name,time:r.text, empIndex});
+        });
+      });
+      // сортируем по имени
+      day.m.sort((a,b)=>a.name.localeCompare(b.name,'he-IL'));
+      day.e.sort((a,b)=>a.name.localeCompare(b.name,'he-IL'));
+      return day;
+    }
 
-      const parsedEmployees = rows.map(r=>{
-        const shifts={};
-        for(let d=0; d<7; d++){
-          const cell=r.values[d];
-          if(/^off$/i.test(cell)){ shifts['d'+d]={m:false,e:false,timeM:'',timeE:''}; continue; }
-          if(/^p$/i.test(cell)){ shifts['d'+d]={m:true,e:true,timeM:'',timeE:''}; continue; }
-          const tr = parseTimeRange(cell);
-          shifts['d'+d] = tr ? assignShiftByTime(tr) : {m:true,e:true,timeM:'',timeE:''};
-        }
-        return { name:r.name.trim(), backend:false, shifts };
+    function renderAll(){
+      // селект дней для быстрого добавления
+      const ds=document.getElementById('daySel'); ds.innerHTML='';
+      weekISO.forEach((iso, i)=>{
+        const o=document.createElement('option'); o.value=String(i);
+        const d=new Date(iso).toLocaleDateString('he-IL');
+        const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        o.textContent = `${weekdaysFull[i]} — ${d}`;
+        ds.appendChild(o);
       });
 
-      // MERGE с существующими
-      const existingByName = new Map(employees.map(e=>[(e.name||'').trim(), e]));
-      const merged = [];
-      const boMap = new Map(employees.map(e=>[(e.name||'').trim(), !!e.backend]));
-      parsedEmployees.forEach(e=>{ if(boMap.has(e.name)) e.backend = boMap.get(e.name); merged.push(e); });
-      employees.forEach(e=>{
-        const key=(e.name||'').trim();
-        if(!key) return;
-        if(!merged.find(x=> (x.name||'').trim()===key)){ merged.push(e); }
-      });
+      const grid=document.getElementById('grid'); grid.innerHTML='';
+      if(weekISO.length!==7){ grid.innerHTML='<div class="note">Нет данных. Зайдите в страницу настроек.</div>'; return; }
 
-      weekISO = parsedWeek;
-      employees = merged;
-      saveAll();
-    }
-
-    /* ========================== schedule & render ========================== */
-    function buildSchedule(){
-      const showBO = $('#toggleBO').checked;
-      const sched = Array.from({length:7},()=>({morning:[], evening:[]}));
-      for(let empIndex=0; empIndex<employees.length; empIndex++){
-        const emp = employees[empIndex]; if(!emp) continue;
-        if(!showBO && emp.backend) continue;
-        const name=(emp.name||'').trim();
-        for(let i=0;i<7;i++){
-          const d=emp.shifts?.['d'+i]||{};
-          if(d.m) sched[i].morning.push({name, time: d.timeM||'', empIndex});
-          if(d.e) sched[i].evening.push({name, time: d.timeE||'', empIndex});
-        }
-      }
-      for(const day of sched){ safeSortByName(day.morning); safeSortByName(day.evening); }
-      return sched;
-    }
-
-    function renderDayPicker(){
-      const L=I18N[getLang()], wrap=$('#dayPicker'); wrap.innerHTML='';
-      const label=document.createElement('span'); label.textContent=L.chooseDays+':'; wrap.appendChild(label);
+      const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
       for(let i=0;i<7;i++){
-        const badge=document.createElement('label'); badge.className='filelabel'; badge.style.borderStyle='solid';
-        const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=exportDays[i];
-        cb.onchange=()=>{ exportDays[i]=cb.checked; saveAll(); };
-        const txt=document.createElement('span'); txt.textContent=L.weekdaysFull[i];
-        badge.appendChild(cb); badge.appendChild(txt); wrap.appendChild(badge);
-      }
-      const allB=document.createElement('button'); allB.className='btn ghost'; allB.textContent=L.all;
-      allB.onclick=()=>{ exportDays=[true,true,true,true,true,true,true]; saveAll(); renderDayPicker(); };
-      wrap.appendChild(allB);
-    }
+        const day=buildDay(i);
+        const card=document.createElement('div'); card.className='day';
+        const head=document.createElement('div'); head.className='head';
+        const dow=document.createElement('div'); dow.className='dow'; dow.textContent=weekdaysFull[i];
+        const date=document.createElement('div'); date.className='date'; date.textContent=new Date(weekISO[i]).toLocaleDateString('he-IL');
+        head.appendChild(dow); head.appendChild(date); card.appendChild(head);
 
-    function renderAddRow(container, employeesList, dayIndex, part){
-      const row = document.createElement('div'); row.className='addRow';
-      const sel = document.createElement('select');
-      employeesList.forEach((e, idx)=>{ const opt=document.createElement('option'); opt.value=String(idx); opt.textContent=e.name||('#'+(idx+1)); sel.appendChild(opt); });
-      const time = document.createElement('input'); time.type='text'; time.placeholder='9-17 / 9:30-18';
-      const btn = document.createElement('button'); btn.className='btn'; btn.textContent='OK';
-      btn.onclick=()=>{
-        const empIndex = parseInt(sel.value,10);
-        const emp = employees[empIndex]; if(!emp) return;
-        const key='d'+dayIndex;
-        emp.shifts = emp.shifts || {};
-        emp.shifts[key] = emp.shifts[key] || {m:false,e:false,timeM:'',timeE:''};
-        const tr = parseTimeRange(time.value.trim());
-        if(tr){
-          const res = assignShiftByTime(tr);
-          emp.shifts[key].m = res.m; emp.shifts[key].e = res.e;
-          emp.shifts[key].timeM = res.timeM; emp.shifts[key].timeE = res.timeE;
-        } else {
-          if(part==='m'){ emp.shifts[key].m=true; emp.shifts[key].timeM=''; }
-          else { emp.shifts[key].e=true; emp.shifts[key].timeE=''; }
-        }
-        saveAll(); renderAll();
-      };
-      row.appendChild(sel); row.appendChild(time); row.appendChild(btn);
-      container.appendChild(row);
-    }
-
-    function renderMain(){
-      const L=I18N[getLang()];
-      const grid=$('#daysGrid'); grid.innerHTML='';
-      if(!weekISO.length || !employees.length){
-        const d=document.createElement('div'); d.className='note'; d.style.padding='10px'; d.textContent=L.noData; grid.appendChild(d); return;
-      }
-      const schedule = buildSchedule();
-      const edit = $('#editMode').checked;
-      const showBO = $('#toggleBO').checked;
-      const selectList = employees.filter(e=> showBO || !e.backend);
-
-      for(let i=0;i<7;i++){
-        const card=document.createElement('section'); card.className='day-card';
-        const head=document.createElement('div'); head.className='day-head';
-        const dow=document.createElement('div'); dow.className='dow'; dow.textContent=L.weekdaysFull[i];
-        const date=document.createElement('div'); date.className='date'; date.textContent=L.fmt(weekISO[i]);
-        head.appendChild(dow); head.appendChild(date);
-
-        const secM=document.createElement('div'); secM.className='section';
-        const titleM=document.createElement('h3'); titleM.textContent=L.morning; secM.appendChild(titleM);
-        const mList=schedule[i].morning;
-        if(mList.length){
+        const secM=document.createElement('div'); secM.className='section'; const h3m=document.createElement('h3'); h3m.textContent='בוקר'; secM.appendChild(h3m);
+        if(day.m.length){
           const ol=document.createElement('ol');
-          mList.forEach((p, idx)=>{
+          day.m.forEach((p,idx)=>{
             const li=document.createElement('li');
-            const left=document.createElement('span'); left.className='li-text';
-            left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
-            li.appendChild(left);
-            if(edit){
-              const btn=document.createElement('button'); btn.className='btn icon'; btn.textContent='×';
-              btn.onclick=()=>{
-                const emp = employees[p.empIndex]; const key='d'+i;
-                if(emp?.shifts?.[key]){ emp.shifts[key].m=false; emp.shifts[key].timeM=''; saveAll(); renderAll(); }
-              };
-              li.appendChild(btn);
-            }
+            const span=document.createElement('span'); span.className='li-txt';
+            span.innerHTML=`<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
+            li.appendChild(span);
+            // удалить прямо с главной
+            const del=document.createElement('button'); del.className='btn.icon'; del.textContent='×';
+            del.onclick=()=>{
+              const key='d'+i;
+              const arr=employees[p.empIndex].shifts[key]||[];
+              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='m' || r.text!==p.time);
+              autoSave(); renderAll();
+            };
+            li.appendChild(del);
             ol.appendChild(li);
           });
           secM.appendChild(ol);
-        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
-        if(edit){
-          const addWrap=document.createElement('div'); addWrap.className='addRow';
-          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent='+';
-          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, selectList, i, 'm'); };
-          secM.querySelector('h3').appendChild(addBtn);
-          secM.appendChild(addWrap);
+        } else {
+          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em);
         }
+        card.appendChild(secM);
 
-        const secE=document.createElement('div'); secE.className='section';
-        const titleE=document.createElement('h3'); titleE.textContent=L.evening; secE.appendChild(titleE);
-        const eList=schedule[i].evening;
-        if(eList.length){
+        const secE=document.createElement('div'); secE.className='section'; const h3e=document.createElement('h3'); h3e.textContent='ערב'; secE.appendChild(h3e);
+        if(day.e.length){
           const ol=document.createElement('ol');
-          eList.forEach((p, idx)=>{
+          day.e.forEach((p,idx)=>{
             const li=document.createElement('li');
-            const left=document.createElement('span'); left.className='li-text';
-            left.innerHTML = `<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
-            li.appendChild(left);
-            if(edit){
-              const btn=document.createElement('button'); btn.className='btn icon'; btn.textContent='×';
-              btn.onclick=()=>{
-                const emp = employees[p.empIndex]; const key='d'+i;
-                if(emp?.shifts?.[key]){ emp.shifts[key].e=false; emp.shifts[key].timeE=''; saveAll(); renderAll(); }
-              };
-              li.appendChild(btn);
-            }
+            const span=document.createElement('span'); span.className='li-txt';
+            span.innerHTML=`<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
+            li.appendChild(span);
+            const del=document.createElement('button'); del.className='btn.icon'; del.textContent='×';
+            del.onclick=()=>{
+              const key='d'+i;
+              const arr=employees[p.empIndex].shifts[key]||[];
+              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='e' || r.text!==p.time);
+              autoSave(); renderAll();
+            };
+            li.appendChild(del);
             ol.appendChild(li);
           });
           secE.appendChild(ol);
-        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
-        if(edit){
-          const addWrap=document.createElement('div'); addWrap.className='addRow';
-          const addBtn=document.createElement('button'); addBtn.className='btn ghost'; addBtn.textContent='+';
-          addBtn.onclick=()=>{ addBtn.disabled=true; renderAddRow(addWrap, selectList, i, 'e'); };
-          secE.querySelector('h3').appendChild(addBtn);
-          secE.appendChild(addWrap);
+        } else {
+          const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em);
         }
+        card.appendChild(secE);
 
-        card.appendChild(head); card.appendChild(secM); card.appendChild(secE);
         grid.appendChild(card);
       }
     }
 
-    function renderEmpManager(){
-      const L=I18N[getLang()];
-      const tbody = document.querySelector('#empTable tbody'); tbody.innerHTML='';
-      if(!employees.length){
-        const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=3; td.className='note'; td.textContent=L.noData; tr.appendChild(td); tbody.appendChild(tr); return;
+    // Быстрое добавление
+    document.getElementById('btnQuickAdd').onclick=()=>{
+      const dayIdx=+document.getElementById('daySel').value;
+      const part=document.getElementById('partSel').value; // 'm'|'e'
+      const name=(document.getElementById('nameQuick').value||'').trim();
+      const time=(document.getElementById('timeQuick').value||'').trim();
+      if(!name){ alert('Введите имя'); return; }
+      let emp = employees.find(e=> (e.name||'').trim()===name);
+      if(!emp){
+        emp={name, backend:false, shifts:{}};
+        for(let i=0;i<7;i++) emp.shifts['d'+i]=[];
+        employees.push(emp);
       }
-      employees.forEach((e, idx)=>{
-        const tr=document.createElement('tr');
-
-        const tdName=document.createElement('td');
-        const inp=document.createElement('input'); inp.type='text'; inp.value=e.name||'';
-        inp.onchange=()=>{ e.name = inp.value.trim(); saveAll(); renderAll(); };
-        tdName.appendChild(inp);
-
-        const tdBO=document.createElement('td');
-        const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!e.backend;
-        cb.onchange=()=>{ e.backend = cb.checked; saveAll(); renderMain(); };
-        tdBO.appendChild(cb);
-
-        const tdAct=document.createElement('td');
-        const rm=document.createElement('button'); rm.className='btn icon'; rm.textContent='×';
-        rm.title=L.remove; rm.onclick=()=>{ employees.splice(idx,1); saveAll(); renderAll(); };
-        tdAct.appendChild(rm);
-
-        tr.appendChild(tdName); tr.appendChild(tdBO); tr.appendChild(tdAct);
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderAll(){ renderDayPicker(); renderMain(); renderEmpManager(); }
-
-    /* ========================== EXPORTS ========================== */
-    function selectedIdx(){ const out=[]; for(let i=0;i<7;i++) if(exportDays[i]) out.push(i); return out; }
-    function buildExportLines(){
-      const L=I18N[getLang()], schedule=buildSchedule(), lines=[];
-      const idx = selectedIdx();
-      if(!weekISO.length) return lines;
-      for(const i of idx){
-        lines.push(`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`);
-        lines.push(`${L.morning}:`);
-        if(schedule[i].morning.length){ schedule[i].morning.forEach((p, n)=>lines.push(`${n+1}. ${p.name}${p.time?` — ${p.time}`:''}`)); } else lines.push('—');
-        lines.push(`${L.evening}:`);
-        if(schedule[i].evening.length){ schedule[i].evening.forEach((p, n)=>lines.push(`${n+1}. ${p.name}${p.time?` — ${p.time}`:''}`)); } else lines.push('—');
-        lines.push('');
+      const key='d'+dayIdx;
+      emp.shifts[key]=emp.shifts[key]||[];
+      if(time){
+        const ranges = splitRanges(time);
+        ranges.forEach(r=>{
+          const b=bucketByPart(r);
+          if(b===part) emp.shifts[key].push(r);
+        });
+      } else {
+        // без времени — создадим «техническую» запись с классификацией по part
+        if(part==='m') emp.shifts[key].push({start:9,end:12,text:'9-12'});
+        else emp.shifts[key].push({start:18,end:22,text:'18-22'});
       }
-      return lines;
-    }
-    function downloadBlob(str, mime, filename){
-      const blob = new Blob([str], {type: mime});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download=filename;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    }
-    btnTxt.addEventListener('click', ()=>{
-      if(!weekISO.length){ alert('Сначала загрузите DOCX или добавьте сотрудников.'); return; }
-      downloadBlob(buildExportLines().join('\n'), 'text/plain;charset=utf-8', 'schedule.txt');
-    });
+      document.getElementById('nameQuick').value='';
+      document.getElementById('timeQuick').value='';
+      autoSave(); renderAll();
+    };
 
-    function makeDayTable(docxNS, L, dayData, isRTL){
-      const { Table, TableRow, TableCell, Paragraph, TextRun, WidthType, AlignmentType, ShadingType, BorderStyle } = docxNS;
-      const cellHdr = (text)=> new TableCell({
-        children:[ new Paragraph({ children:[new TextRun({text, bold:true})], alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT, bidirectional:isRTL }) ],
-        shading:{ type:ShadingType.CLEAR, color:"FFFFFF", fill:"EEF4FF" }, margins:{top:120,bottom:120,left:180,right:180}
-      });
-      const cellList = (items)=> new TableCell({
-        children: items.length ? items.map((line)=> new Paragraph({ children:[new TextRun(line)], alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT, bidirectional:isRTL })) :
-                                 [ new Paragraph({ children:[new TextRun('—')], alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT, bidirectional:isRTL }) ],
-        margins:{top:120,bottom:120,left:180,right:180}
-      });
-      const headerRow = new TableRow({ children:[ cellHdr(L.morning), cellHdr(L.evening) ] });
-      const mLines = dayData.morning.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-      const eLines = dayData.evening.map((p,idx)=> `${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-      const listRow = new TableRow({ children:[ cellList(mLines), cellList(eLines) ] });
-      return new Table({
-        rows:[headerRow,listRow],
-        width:{ size:100, type:WidthType.PERCENTAGE },
-        borders:{
-          top:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
-          bottom:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
-          left:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
-          right:{style:BorderStyle.SINGLE,size:4,color:"DDE3EA"},
-          insideH:{style:BorderStyle.SINGLE,size:4,color:"E8EDF3"},
-          insideV:{style:BorderStyle.SINGLE,size:4,color:"E8EDF3"},
-        }
-      });
-    }
-    btnDocx.addEventListener('click', async ()=>{
-      if(!weekISO.length){ alert('Сначала загрузите DOCX или добавьте сотрудников.'); return; }
-      const L=I18N[getLang()], isRTL=(getLang()==='he');
-      const schedule=buildSchedule(); const days=selectedIdx();
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, PageOrientation } = window.docx;
-      const children=[];
-      children.push(new Paragraph({ children:[new TextRun(L.title)], heading:HeadingLevel.HEADING_1, alignment:AlignmentType.CENTER }));
-      for(const i of days){
-        children.push(new Paragraph({ children:[new TextRun(`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`)], heading:HeadingLevel.HEADING_2, alignment:isRTL?AlignmentType.RIGHT:AlignmentType.LEFT }));
-        children.push( makeDayTable(window.docx, L, schedule[i], isRTL) );
-        children.push(new Paragraph({ children:[ new TextRun('') ] }));
-      }
-      const doc = new Document({ sections:[{properties:{ page:{ size:{width:11906,height:16838,orientation:PageOrientation.PORTRAIT}, margin:{top:720,right:720,bottom:720,left:720} } }, children}] });
-      const blob=await Packer.toBlob(doc);
-      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='schedule.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
+    // показать/скрыть backoffice
+    document.getElementById('showBO').onchange = ()=> renderAll();
 
-    btnPdf.addEventListener('click', ()=>{
-      if(!weekISO.length){ alert('Сначала загрузите DOCX или добавьте сотрудников.'); return; }
-      const L=I18N[getLang()], isRTL=(getLang()==='he');
-      const schedule=buildSchedule(); const days=selectedIdx();
-
+    // PDF экспорт
+    document.getElementById('btnPdf').onclick=()=>{
+      if(weekISO.length!==7){ alert('Нет данных для экспорта'); return; }
       const container=document.createElement('div');
       container.style.padding='16px'; container.style.fontFamily='Arial, Helvetica, sans-serif';
-      container.style.fontSize='12pt'; container.style.lineHeight='1.4';
-      container.dir = isRTL ? 'rtl' : 'ltr';
-      const title=document.createElement('h1'); title.textContent=L.title; title.style.textAlign='center'; title.style.margin='0 0 16px'; container.appendChild(title);
-
-      days.forEach(i=>{
-        const block=document.createElement('div'); block.style.border='1px solid #e6e6e6'; block.style.borderRadius='10px'; block.style.padding='12px'; block.style.margin='0 0 12px'; block.style.background='#fff';
-        const h2=document.createElement('h2'); h2.textContent=`${L.weekdaysFull[i]} — ${L.fmt(weekISO[i])}`; h2.style.margin='0 0 8px'; block.appendChild(h2);
-
-        const two=document.createElement('div'); two.style.display='flex'; two.style.gap='12px';
-        const col=(titleTxt, items)=>{
+      const title=document.createElement('h2'); title.textContent='סידור עבודה'; title.style.textAlign='center'; container.appendChild(title);
+      const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+      for(let i=0;i<7;i++){
+        const block=document.createElement('div'); block.style.border='1px solid #e6e6e6'; block.style.borderRadius='10px'; block.style.padding='10px'; block.style.marginBottom='10px'; block.style.background='#fff';
+        const h=document.createElement('h3'); h.textContent=`${weekdaysFull[i]} — ${new Date(weekISO[i]).toLocaleDateString('he-IL')}`; h.style.margin='0 0 6px'; block.appendChild(h);
+        const day=buildDay(i);
+        const two=document.createElement('div'); two.style.display='flex'; two.style.gap='10px';
+        function col(tt, arr){
           const c=document.createElement('div'); c.style.flex='1';
-          const th=document.createElement('div'); th.textContent=titleTxt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='6px 8px'; th.style.fontWeight='700'; c.appendChild(th);
-          const body=document.createElement('div'); body.style.border='1px solid #e8edf3'; body.style.padding='6px 8px';
-          if(items.length){ items.forEach(t=>{ const line=document.createElement('div'); line.textContent=t; line.style.margin='2px 0'; body.appendChild(line); }); }
-          else { const empty=document.createElement('div'); empty.textContent='—'; empty.style.color = '#999'; body.appendChild(empty); }
+          const th=document.createElement('div'); th.textContent=tt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='5px 7px'; th.style.fontWeight='700'; c.appendChild(th);
+          const body=document.createElement('div'); body.style.border='1px solid #e8edf3'; body.style.padding='5px 7px';
+          if(arr.length){
+            arr.forEach((p,idx)=>{ const line=document.createElement('div'); line.textContent=`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`; line.style.margin='2px 0'; body.appendChild(line); });
+          } else { const empty=document.createElement('div'); empty.textContent='—'; empty.style.color='#999'; body.appendChild(empty); }
           c.appendChild(body); return c;
-        };
-        const mLines=schedule[i].morning.map((p,idx)=>`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-        const eLines=schedule[i].evening.map((p,idx)=>`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`);
-        two.appendChild(col(L.morning, mLines)); two.appendChild(col(L.evening, eLines));
+        }
+        two.appendChild(col('בוקר',day.m)); two.appendChild(col('ערב',day.e));
         block.appendChild(two); container.appendChild(block);
-      });
+      }
+      html2pdf().set({margin:10,filename:'schedule.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(container).save();
+    };
 
-      html2pdf().set({
-        margin:10, filename:'schedule.pdf',
-        image:{type:'jpeg',quality:0.98},
-        html2canvas:{scale:2,useCORS:true},
-        jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
-        pagebreak:{mode:['css','legacy']}
-      }).from(container).save();
-    });
-
-    /* ========================== Cloud Save/Load (Firestore) ========================== */
-    function siteIdValue(){ const v=(cloudSiteId.value||'').trim(); return v||'default'; }
-    function setCloudStatus(msg){ cloudStatus.textContent = msg; }
-
-    async function cloudSave(){
-      const siteId = siteIdValue();
-      if(!weekISO.length){ alert('Нет данных: загрузите DOCX или добавьте сотрудников.'); return; }
-      setCloudStatus('Saving…');
-      const payload = { weekISO, employees, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-      await db.collection('schedules').doc(siteId).set(payload, { merge:true });
-      setCloudStatus('Saved ✓');
-    }
-    async function cloudLoad(){
-      const siteId = siteIdValue();
-      setCloudStatus('Loading…');
-      const snap = await db.collection('schedules').doc(siteId).get();
-      if(!snap.exists){ setCloudStatus('Not found'); alert('Документ не найден. Сохраните сначала (Save).'); return; }
-      const data = snap.data()||{};
-      if(Array.isArray(data.weekISO)) weekISO = data.weekISO;
-      if(Array.isArray(data.employees)) employees = data.employees;
-      saveAll(); renderAll(); setCloudStatus('Loaded ✓');
-    }
-
-    /* ========================== events & init ========================== */
-    btnAddEmp.addEventListener('click', ()=>{
-      const name = (newEmpName.value||'').trim(); if(!name) return;
-      const backend = newEmpBO.checked;
-      const emptyShifts={}; for(let i=0;i<7;i++) emptyShifts['d'+i]={m:false,e:false,timeM:'',timeE:''};
-      employees.push({ name, backend, shifts: emptyShifts });
-      newEmpName.value=''; newEmpBO.checked=false;
-      saveAll(); renderAll();
-    });
-
-    docxInput.addEventListener('change', async (e)=>{
-      const file=e.target.files && e.target.files[0]; if(!file) return;
-      try{
-        const raw = await extractTextFromDocx(file);
-        parseModelFromRawText(raw);
-        renderAll();
-      }catch(err){ console.error(err); alert('Ошибка чтения/парсинга DOCX: '+err.message); }
-    });
-
-    toggleBO.addEventListener('change', ()=>{ saveAll(); renderMain(); });
-    editMode.addEventListener('change', ()=>{ renderMain(); });
-    btnSaveLocal.addEventListener('click', ()=>{ saveAll(); alert('Сохранено ✓'); });
-    langToggle.addEventListener('click',(e)=>{ e.preventDefault(); setLang(getLang()==='he'?'ru':'he'); });
-
-    cloudSave.addEventListener('click', cloudSave);
-    cloudLoad.addEventListener('click', cloudLoad);
-    auth.onAuthStateChanged(u=> setCloudStatus(u?'Auth OK':'Auth…'));
-
-    (function init(){
-      applyLang();
-      try{
-        const wd=JSON.parse(localStorage.getItem('weekDates')||'[]');
-        const em=JSON.parse(localStorage.getItem('employees')||'[]');
-        if(Array.isArray(wd)&&wd.length===7) weekISO=wd;
-        if(Array.isArray(em)) employees=em;
-      }catch{}
-      if(localStorage.getItem('showBackend')==='1') toggleBO.checked = true;
-      renderAll();
-    })();
+    // init
+    auth.onAuthStateChanged(u=>{ if(u) loadCloud(); });
   </script>
 </body>
 </html>
