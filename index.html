@@ -47,108 +47,171 @@
 
   <footer id="release"></footer>
 
-  <script>
-  const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status";
-  const history = {}; // история температур
+  <!-- ВАЖНО: type="module", чтобы работал await -->
+  <script type="module">
+    // ====== НАСТРОЙКИ ======
+    const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status";
+    const POLL_MS = 60_000;           // обновление каждые 60 сек
+    const HISTORY_MINUTES = 48 * 60;  // хранить 48 часов в localStorage
+    const ALARM_FRIDGE = 9;           // >9°C для холодильников
+    const ALARM_FREEZER = -1;         // >-1°C для морозилок
+    const ALARM_WINDOW_MIN = 30;      // аларм, если держится >= 30 минут
+    const IGNORE_SPIKES_MIN = 10;     // всплески <10 минут игнорируются (помечаются как Spike)
+    const LS_KEY = "fridge_history_v2";
 
-  function isFreezer(name) {
-    return (name || "").includes("מקפיא") || (name || "").toLowerCase().includes("freezer");
-  }
+    // ====== УТИЛИТЫ ======
+    const isFreezer = (name) => /מקפ|freez/i.test(name || "");
 
- 
+    const loadHistory = () => {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); }
+      catch { return {}; }
+    };
+    const saveHistory = (h) => localStorage.setItem(LS_KEY, JSON.stringify(h));
 
-    async function fetchData() {
-  const resp = await fetch(DATA_URL, { cache: "no-store" });
-  const text = await resp.text();
-  // дальше у тебя уже есть render(text) или парсинг XML → оставь как было
-  render(text);
-}
-        const text = await resp.text();
-        // ищем признак XML с данными
-        if (text.includes("<update") && text.includes('i="list_')) {
-          console.log("Using endpoint:", url);
-          return { url, text };
-        } else {
-          console.warn("Endpoint", url, "returned unexpected body");
-        }
-      } catch (e) {
-        console.warn("Endpoint", url, "error:", e.message);
+    function trimHistory(h) {
+      const cutoff = Date.now() - HISTORY_MINUTES * 60_000;
+      for (const id of Object.keys(h)) {
+        h[id] = (h[id] || []).filter(e => e.t >= cutoff);
+        if (!h[id].length) delete h[id];
+      }
+      return h;
+    }
+
+    function upsertReading(hist, id, value) {
+      const t = Date.now();
+      if (!hist[id]) hist[id] = [];
+      hist[id].push({ v: value, t });
+      // коалесцируем частые записи: оставляем не чаще 1 раза в минуту
+      const arr = hist[id];
+      if (arr.length >= 2 && Math.abs(arr[arr.length-1].t - arr[arr.length-2].t) < 50_000) {
+        arr.splice(arr.length-2, 1);
       }
     }
-    throw new Error("Все кандидаты вернули ошибку или неожиданный ответ");
-  }
 
-  function determineStatus(name, temp, id) {
-    const now = Date.now();
-    const threshold = isFreezer(name) ? -1 : 9;
-    const t = parseFloat(temp);
-    const alarmNow = Number.isFinite(t) && t > threshold;
-
-    if (!history[id]) history[id] = [];
-    history[id].push({ time: now, temp: Number.isFinite(t) ? t : null, alarm: alarmNow });
-    // держим до 60 минут
-    history[id] = history[id].filter(e => now - e.time < 60 * 60 * 1000);
-
-    // как долго подряд превышение
-    let minutes = 0;
-    for (let i = history[id].length - 1; i >= 0; i--) {
-      const e = history[id][i];
-      if (!e.alarm) break;
-      const prevT = i > 0 ? history[id][i - 1].time : e.time;
-      minutes += Math.max(1, Math.round((e.time - prevT) / 60000));
+    // Сколько минут подряд последняя серия выше порога
+    function sustainedAlarmMinutes(series, threshold) {
+      let minutes = 0;
+      for (let i = series.length - 1; i >= 0; i--) {
+        const { v, t } = series[i];
+        if (v == null || isNaN(v)) return Infinity; // ошибка/????? трактуем как "проблему сенсора"
+        if (v > threshold) {
+          const prevT = i > 0 ? series[i-1].t : t;
+          minutes += Math.max(1, Math.round((t - prevT) / 60_000));
+        } else {
+          break;
+        }
+      }
+      return minutes;
     }
 
-    // правила: <10 мин — игнор; ≥30 мин — Alarm; остальное — Normal
-    if (minutes >= 30) return { cls: "alarm", label: "🔴 Alarm" };
-    return { cls: "normal", label: minutes > 0 ? "⏳ Spike (<10m)" : "✅ Normal" };
-  }
-
-  function render(xmlText) {
-    const parser = new DOMParser();
-    const xml = parser.parseFromString(xmlText, "application/xml");
-    const table = document.querySelector("#fridgeTable tbody");
-    table.innerHTML = "";
-
-    const items = xml.querySelectorAll("u");
-    for (let i = 0; i < items.length; i += 6) {
-      const id = items[i]?.textContent?.trim();
-      const name = items[i + 1]?.textContent?.trim();
-      const temp = items[i + 2]?.textContent?.trim();
-
-      // только 1..19
-      const idNum = parseInt(id, 10);
-      if (!id || !(idNum >= 1 && idNum <= 19)) continue;
-
-      const st = determineStatus(name, temp, id);
-
-      const row = document.createElement("tr");
-      row.className = st.cls;
-      row.innerHTML = `
-        <td>${id}</td>
-        <td>${name ?? "-"}</td>
-        <td>${Number.isFinite(parseFloat(temp)) ? parseFloat(temp).toFixed(1) : "—"}</td>
-        <td>${st.label}</td>
-      `;
-      table.appendChild(row);
+    function formatTemp(v) {
+      if (v == null || !isFinite(v)) return "—";
+      return v.toFixed(1) + "°C";
     }
-  }
 
-  async function fetchData() {
-    const banner = document.querySelector("h2");
-    try {
-      const { url, text } = await tryCandidates();
-      banner.dataset.endpoint = url; // подсказка какой URL сработал
-      render(text);
-    } catch (e) {
-      console.error(e);
-      // покажем понятную ошибку на странице
+    // ====== ПАРСИНГ XML ======
+    function parseXMLToRecords(xmlText) {
+      const xml = new DOMParser().parseFromString(xmlText, "application/xml");
+      // если это не XML — бросаем ошибку
+      if (xml.documentElement.nodeName === "parsererror") {
+        throw new Error("Неверный XML от прокси");
+      }
+
+      // Собираем map: list_index -> текст
+      const map = {};
+      xml.querySelectorAll("u").forEach(node => {
+        const iAttr = node.getAttribute("i") || "";
+        const m = iAttr.match(/list_(\d+)/);
+        if (!m) return;
+        map[Number(m[1])] = (node.textContent || "").trim();
+      });
+
+      // Каждая запись начинается с кратного 6: id, name, temp, (status html) ...
+      const keys = Object.keys(map).map(Number).sort((a,b)=>a-b);
+      const records = [];
+
+      for (const base of keys) {
+        if (base % 6 !== 0) continue;
+        const idRaw = map[base];
+        const name  = map[base+1];
+        const tempRaw = map[base+2];
+
+        if (!idRaw || !name) continue;
+
+        // фильтр только 1..19 (разрешаем строки вида "13-14" -> parseInt=13)
+        const idNum = parseInt(String(idRaw), 10);
+        if (!(idNum >= 1 && idNum <= 19)) continue;
+
+        const tempNum = Number(String(tempRaw ?? "").replace(",", "."));
+        const temp = isFinite(tempNum) ? tempNum : null;
+
+        records.push({ id: String(idRaw), name, temp });
+      }
+      return records;
+    }
+
+    // ====== ОТРИСОВКА ======
+    function render(rows, hist) {
       const tbody = document.querySelector("#fridgeTable tbody");
-      tbody.innerHTML = `<tr><td colspan="4">Ошибка обновления: ${e.message}. Открой консоль (F12) → Console, смотри, какие URL пробовали.</td></tr>`;
-    }
-  }
+      tbody.innerHTML = "";
 
-  fetchData();
-  setInterval(fetchData, 60000);
-</script>
+      rows.forEach(r => {
+        const thr = isFreezer(r.name) ? ALARM_FREEZER : ALARM_FRIDGE;
+        const minutes = sustainedAlarmMinutes(hist[r.id] || [], thr);
+        const isAlarm = minutes >= ALARM_WINDOW_MIN;
+        const isSpike = minutes > 0 && minutes < IGNORE_SPIKES_MIN;
+
+        let statusClass = "ok";
+        let statusText = "✅ Normal";
+        if (r.temp == null) { statusClass = "sensor"; statusText = "⚠️ Sensor?"; }
+        else if (isAlarm) { statusClass = "alarm"; statusText = "🔴 Alarm"; }
+        else if (isSpike) { statusClass = "ok";     statusText = "⏳ Spike (<10m)"; }
+
+        const tr = document.createElement("tr");
+        tr.className = statusClass;
+        tr.innerHTML = `
+          <td>${r.id}</td>
+          <td>${r.name}</td>
+          <td>${formatTemp(r.temp)}</td>
+          <td class="tag ${statusClass}">${statusText}</td>
+          <td>${Number.isFinite(minutes) ? minutes : "∞"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ====== ЦИКЛ ОБНОВЛЕНИЯ ======
+    async function tick() {
+      const lastEl = document.getElementById("lastUpdate");
+      const hist = trimHistory(loadHistory());
+
+      try {
+        const resp = await fetch(DATA_URL, { cache: "no-store" });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const xmlText = await resp.text();
+
+        const rows = parseXMLToRecords(xmlText);
+
+        // пополняем историю
+        rows.forEach(r => upsertReading(hist, r.id, r.temp));
+        saveHistory(hist);
+
+        render(rows, hist);
+        lastEl.textContent = "Обновлено: " + new Date().toLocaleString();
+      } catch (e) {
+        const tbody = document.querySelector("#fridgeTable tbody");
+        tbody.innerHTML = `<tr><td colspan="5">Ошибка обновления: ${e.message}</td></tr>`;
+        lastEl.textContent = "Ошибка обновления";
+        console.error(e);
+      }
+    }
+
+    // старт и интервал
+    tick();
+    setInterval(tick, POLL_MS);
+
+    // подпись релиза
+    document.getElementById("release").textContent = "Last release: 2025-09-12";
+  </script>
 </body>
 </html>
