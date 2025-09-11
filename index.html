@@ -56,7 +56,7 @@
 
   <script type="module">
     // ===== CONFIG =====
-    const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status";
+    const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status"; // ← твой рабочий прокси
     const POLL_MS = 60_000;
     const HISTORY_MINUTES = 48 * 60;
     const ALARM_FRIDGE = 9;
@@ -65,72 +65,43 @@
     const IGNORE_SPIKES_MIN = 10;
     const LS_KEY = "fridge_history_v3_cards";
 
+    // ===== helpers =====
     const isFreezer = (name) => /מקפ|freez/i.test(name || "");
     const loadHistory = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } };
     const saveHistory = (h) => localStorage.setItem(LS_KEY, JSON.stringify(h));
+    function trimHistory(h){ const cutoff = Date.now() - HISTORY_MINUTES*60_000; for (const k of Object.keys(h)){ h[k] = (h[k]||[]).filter(e=>e.t>=cutoff); if(!h[k].length) delete h[k]; } return h; }
+    function upsertReading(h, id, value){ const t=Date.now(); if(!h[id]) h[id]=[]; h[id].push({v:value,t}); const a=h[id]; if(a.length>=2 && Math.abs(a[a.length-1].t-a[a.length-2].t)<50_000){ a.splice(a.length-2,1);} }
+    function sustainedAlarmMinutes(series, thr){ let m=0; for(let i=series.length-1;i>=0;i--){ const {v,t}=series[i]; if(v==null||isNaN(v)) return Infinity; if(v>thr){ const pt=i>0?series[i-1].t:t; m+=Math.max(1,Math.round((t-pt)/60_000)); } else break; } return m; }
 
-    function trimHistory(h){
-      const cutoff = Date.now() - HISTORY_MINUTES * 60_000;
-      for (const k of Object.keys(h)) {
-        h[k] = (h[k] || []).filter(e => e.t >= cutoff);
-        if (!h[k].length) delete h[k];
-      }
-      return h;
-    }
-
-    function upsertReading(h, id, value){
-      const t = Date.now();
-      if (!h[id]) h[id] = [];
-      h[id].push({ v: value, t });
-      const a = h[id];
-      if (a.length >= 2 && Math.abs(a[a.length-1].t - a[a.length-2].t) < 50_000) {
-        a.splice(a.length-2, 1);
-      }
-    }
-
-    function sustainedAlarmMinutes(series, thr){
-      let m = 0;
-      for (let i = series.length - 1; i >= 0; i--) {
-        const { v, t } = series[i];
-        if (v == null || isNaN(v)) return Infinity; // сенсорная ошибка => бесконечность
-        if (v > thr) {
-          const pt = i > 0 ? series[i-1].t : t;
-          m += Math.max(1, Math.round((t - pt) / 60_000));
-        } else break;
-      }
-      return m;
-    }
-
+    // ===== parse XML (без регэкспа в строковом литерале) =====
     function parseXMLToRecords(xmlText){
-      const xml = new DOMParser().parseFromString(xmlText, "application/xml");
-      if (xml.documentElement.nodeName === "parsererror") throw new Error("Неверный XML");
+      const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
+      if (xml.documentElement.nodeName === 'parsererror') throw new Error('Неверный XML');
       const map = {};
-      xml.querySelectorAll("u").forEach(n => {
-        const m = (n.getAttribute("i") || "").match(/list_(\\d+)/);
-        if (m) map[+m[1]] = (n.textContent || "").trim();
+      xml.querySelectorAll('u').forEach(n=>{
+        const attr = n.getAttribute('i') || '';
+        if (!attr.startsWith('list_')) return;
+        const idx = parseInt(attr.slice(5), 10);
+        if (!Number.isFinite(idx)) return;
+        map[idx] = (n.textContent || '').trim();
       });
       const keys = Object.keys(map).map(Number).sort((a,b)=>a-b);
-      const out = [];
-      for (const base of keys) {
-        if (base % 6 !== 0) continue;
-        const idRaw = map[base], name = map[base+1], tempRaw = map[base+2];
-        if (!idRaw || !name) continue;
-        const idNum = parseInt(String(idRaw), 10);
-        if (!(idNum >= 1 && idNum <= 19)) continue;
-        const tnum = Number(String(tempRaw ?? "").replace(",", "."));
-        out.push({ id: String(idRaw), name, temp: isFinite(tnum) ? tnum : null });
+      const out=[];
+      for (const base of keys){
+        if(base%6!==0) continue;
+        const idRaw=map[base], name=map[base+1], tempRaw=map[base+2];
+        if(!idRaw||!name) continue;
+        const idNum=parseInt(String(idRaw),10);
+        if(!(idNum>=1&&idNum<=19)) continue;
+        const tnum=Number(String(tempRaw??'').replace(',','.'));
+        out.push({ id:String(idRaw), name, temp:isFinite(tnum)?tnum:null });
       }
       return out;
     }
 
     function cardHTML(r, minutes, cls){
-      const label =
-        cls === "alarm" ? "Alarm 🔴" :
-        cls === "sensor" ? "Sensor ⚠️" :
-        (minutes > 0 && minutes < IGNORE_SPIKES_MIN ? "Spike ⏳ (<10m)" : "Normal ✅");
-
-      const temp = (r.temp == null || !isFinite(r.temp)) ? "—" : `${r.temp.toFixed(1)}°C`;
-
+      const label = cls==='alarm' ? 'Alarm 🔴' : cls==='sensor' ? 'Sensor ⚠️' : (minutes>0 && minutes<IGNORE_SPIKES_MIN ? 'Spike ⏳ (<5m)' : 'Normal ✅');
+      const temp = (r.temp==null||!isFinite(r.temp)) ? '—' : `${r.temp.toFixed(1)}°C`;
       return `
         <div class="card ${cls}">
           <div class="top">
@@ -138,54 +109,47 @@
             <div class="name" title="${r.name}">${r.name}</div>
           </div>
           <div class="temp num">${temp}</div>
-          <div class="row">
-            <span class="status ${cls}">${label}</span>
-            <span class="muted">דקות ↑: <span class="num">${Number.isFinite(minutes) ? minutes : "∞"}</span></span>
-          </div>
+          <div class="row"><span class="status ${cls}">${label}</span><span class="muted">דקות ↑: <span class="num">${Number.isFinite(minutes)?minutes:'∞'}</span></span></div>
         </div>`;
     }
 
     function render(rows, hist){
-      const grid = document.getElementById("cards");
-      grid.innerHTML = "";
+      const grid = document.getElementById('cards'); grid.innerHTML='';
       const frag = document.createDocumentFragment();
-
-      rows.forEach(r => {
+      rows.forEach(r=>{
         const thr = isFreezer(r.name) ? ALARM_FREEZER : ALARM_FRIDGE;
-        const minutes = sustainedAlarmMinutes(hist[r.id] || [], thr);
+        const minutes = sustainedAlarmMinutes(hist[r.id]||[], thr);
         const isAlarm = minutes >= ALARM_WINDOW_MIN;
-        const cls = r.temp == null ? "sensor" : (isAlarm ? "alarm" : "ok");
-
-        const wrapper = document.createElement("div");
+        const cls = r.temp==null ? 'sensor' : isAlarm ? 'alarm' : 'ok';
+        const wrapper = document.createElement('div');
         wrapper.innerHTML = cardHTML(r, minutes, cls);
         frag.appendChild(wrapper.firstElementChild);
       });
-
       grid.appendChild(frag);
     }
 
     async function tick(){
-      const lastEl = document.getElementById("lastUpdate");
+      const lastEl = document.getElementById('lastUpdate');
       const hist = trimHistory(loadHistory());
       try {
-        const resp = await fetch(DATA_URL, { cache: "no-store" });
-        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const resp = await fetch(DATA_URL, { cache:'no-store' });
+        if (!resp.ok) throw new Error('HTTP '+resp.status);
         const xml = await resp.text();
         const rows = parseXMLToRecords(xml);
-        rows.forEach(r => upsertReading(hist, r.id, r.temp));
+        rows.forEach(r=>upsertReading(hist, r.id, r.temp));
         saveHistory(hist);
         render(rows, hist);
-        lastEl.textContent = "Обновлено: " + new Date().toLocaleString();
-      } catch (e) {
-        document.getElementById("cards").innerHTML = `<div class="card sensor">Ошибка обновления: ${e.message}</div>`;
-        lastEl.textContent = "Ошибка";
+        lastEl.textContent = 'Обновлено: ' + new Date().toLocaleString();
+      } catch(e){
+        document.getElementById('cards').innerHTML = `<div class="card sensor">Ошибка обновления: ${e.message}</div>`;
+        lastEl.textContent = 'Ошибка';
         console.error(e);
       }
     }
 
     tick();
     setInterval(tick, POLL_MS);
-    document.getElementById("release").textContent = "Last release: 2025-09-12";
+    document.getElementById('release').textContent = 'Last release: 2025-09-12 01-33';
   </script>
 </body>
 </html>
