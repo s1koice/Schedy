@@ -48,139 +48,113 @@
   <footer id="release"></footer>
 
   <script>
-    // ===================== CONFIG =====================
-    // IMPORTANT: replace DATA_URL with your HTTPS proxy endpoint
-    // (Cloudflare Worker / Vercel examples are in the chat)
-    var DATA_URL = "__SET_ME__/status"; // e.g. https://your-worker.workers.dev/status
-    var POLL_MS = 60000;          // refresh every 60s
-    var HISTORY_MINUTES = 48 * 60; // keep 48h in localStorage
-    var ALARM_FRIDGE = 9;         // >9°C for fridges
-    var ALARM_FREEZER = -1;       // >-1°C for freezers
-    var ALARM_WINDOW_MIN = 30;    // alarm if sustained >= 30 min
-    var IGNORE_SPIKES_MIN = 10;   // ignore spikes < 10 min
+  const history = {}; // история температур
 
-    var LS_KEY = "fridge_history_v2";
+  function isFreezer(name) {
+    return (name || "").includes("מקפיא") || (name || "").toLowerCase().includes("freezer");
+  }
 
-    function isFreezer(name){ return /מקפ|freez/i.test(name || ""); }
+  // Кандидаты эндпоинтов (добавь/убери при необходимости)
+  const CANDIDATES = [
+    "http://109.67.166.227:82/cgi-bin/cgi.cgi?Status",
+    "http://109.67.166.227:82/cgi-bin/cgi.cgi?MobileOverview",
+    "http://109.67.166.227:82/cgi-bin/cgi.cgi?MobileSummary"
+  ];
 
-    function loadHistory(){
-      try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch (e) { return {}; }
-    }
-    function saveHistory(h){ localStorage.setItem(LS_KEY, JSON.stringify(h)); }
-
-    function trimHistory(h){
-      var cutoff = Date.now() - HISTORY_MINUTES * 60000;
-      Object.keys(h).forEach(function(id){
-        h[id] = (h[id] || []).filter(function(e){ return e.t >= cutoff; });
-        if (!h[id].length) delete h[id];
-      });
-      return h;
-    }
-
-    function sustainedAlarmMinutes(series, threshold){
-      var minutes = 0;
-      for (var i = series.length - 1; i >= 0; i--) {
-        var v = series[i].v, t = series[i].t;
-        if (v == null || isNaN(v)) return Infinity; // sensor error -> treat as alarm
-        if (v > threshold) {
-          var prevT = i > 0 ? series[i-1].t : t;
-          minutes += Math.max(1, Math.round((t - prevT)/60000));
-        } else { break; }
-      }
-      return minutes;
-    }
-
-    function upsertReading(hist, id, value){
-      var t = Date.now();
-      if (!hist[id]) hist[id] = [];
-      hist[id].push({ v: value, t: t });
-      var arr = hist[id];
-      if (arr.length >= 2 && Math.abs(arr[arr.length-1].t - arr[arr.length-2].t) < 50000) {
-        arr.splice(arr.length-2, 1);
-      }
-    }
-
-    function parseXMLToRecords(xmlDoc){
-      var map = {};
-      var nodes = xmlDoc.querySelectorAll('u');
-      nodes.forEach(function(node){
-        var iAttr = node.getAttribute('i') || "";
-        var m = iAttr.match(/list\_(\d+)/);
-        if (!m) return;
-        map[Number(m[1])] = (node.textContent || "").trim();
-      });
-
-      var records = [];
-      var keys = Object.keys(map).map(Number).sort(function(a,b){ return a-b; });
-      for (var idx = 0; idx < keys.length; idx++) {
-        var base = keys[idx];
-        if (base % 6 !== 0) continue; // only starts at multiples of 6
-        var idRaw = map[base];
-        var name = map[base+1];
-        var tempRaw = map[base+2];
-        if (!idRaw || !name) continue;
-        var idForFilter = parseInt(String(idRaw), 10);
-        if (!(idForFilter >= 1 && idForFilter <= 19)) continue;
-        var temp = Number(String(tempRaw).replace(",", "."));
-        records.push({ id: String(idRaw), name: name, temp: isFinite(temp) ? temp : null });
-      }
-      return records;
-    }
-
-    function formatTemp(v){
-      if (v == null) return "—";
-      return v.toFixed(1) + "°C";
-    }
-
-    function render(rows, hist){
-      var tbody = document.querySelector('#fridgeTable tbody');
-      tbody.innerHTML = '';
-      rows.forEach(function(r){
-        var thr = isFreezer(r.name) ? ALARM_FREEZER : ALARM_FRIDGE;
-        var minutes = sustainedAlarmMinutes(hist[r.id] || [], thr);
-        var isAlarm = minutes >= ALARM_WINDOW_MIN;
-        var isSpike = minutes > 0 && minutes < IGNORE_SPIKES_MIN;
-
-        var statusClass = 'ok';
-        var statusText = '✅ Normal';
-        if (r.temp == null) { statusClass = 'sensor'; statusText = '⚠️ Sensor?'; }
-        else if (isAlarm) { statusClass = 'alarm'; statusText = '🔴 Alarm'; }
-        else if (isSpike) { statusClass = 'ok'; statusText = '⏳ Spike (<10m)'; }
-
-        var tr = document.createElement('tr');
-        tr.className = statusClass;
-        tr.innerHTML =
-          '<td>' + r.id + '</td>' +
-          '<td>' + r.name + '</td>' +
-          '<td>' + formatTemp(r.temp) + '</td>' +
-          '<td class="tag ' + statusClass + '">' + statusText + '</td>' +
-          '<td>' + (isFinite(minutes) ? minutes : '∞') + '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function tick(){
-      var lastEl = document.getElementById('lastUpdate');
-      var hist = trimHistory(loadHistory());
+  async function tryCandidates() {
+    for (const url of CANDIDATES) {
       try {
-        var resp = await fetch(DATA_URL, { cache: 'no-store' });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        var text = await resp.text();
-        var xml = new DOMParser().parseFromString(text, 'application/xml');
-        var rows = parseXMLToRecords(xml);
-        rows.forEach(function(r){ upsertReading(hist, r.id, r.temp); });
-        saveHistory(hist);
-        render(rows, hist);
-        lastEl.textContent = 'Обновлено: ' + new Date().toLocaleString();
+        const resp = await fetch(url, { cache: "no-store" });
+        if (!resp.ok) {
+          console.warn("Endpoint", url, "-> HTTP", resp.status);
+          continue;
+        }
+        const text = await resp.text();
+        // ищем признак XML с данными
+        if (text.includes("<update") && text.includes('i="list_')) {
+          console.log("Using endpoint:", url);
+          return { url, text };
+        } else {
+          console.warn("Endpoint", url, "returned unexpected body");
+        }
       } catch (e) {
-        lastEl.textContent = 'Ошибка обновления: ' + e.message;
+        console.warn("Endpoint", url, "error:", e.message);
       }
     }
+    throw new Error("Все кандидаты вернули ошибку или неожиданный ответ");
+  }
 
-    tick();
-    setInterval(tick, POLL_MS);
+  function determineStatus(name, temp, id) {
+    const now = Date.now();
+    const threshold = isFreezer(name) ? -1 : 9;
+    const t = parseFloat(temp);
+    const alarmNow = Number.isFinite(t) && t > threshold;
 
-    document.getElementById('release').textContent = 'Last release: 2025-09-11 22:09';
-  </script>
+    if (!history[id]) history[id] = [];
+    history[id].push({ time: now, temp: Number.isFinite(t) ? t : null, alarm: alarmNow });
+    // держим до 60 минут
+    history[id] = history[id].filter(e => now - e.time < 60 * 60 * 1000);
+
+    // как долго подряд превышение
+    let minutes = 0;
+    for (let i = history[id].length - 1; i >= 0; i--) {
+      const e = history[id][i];
+      if (!e.alarm) break;
+      const prevT = i > 0 ? history[id][i - 1].time : e.time;
+      minutes += Math.max(1, Math.round((e.time - prevT) / 60000));
+    }
+
+    // правила: <10 мин — игнор; ≥30 мин — Alarm; остальное — Normal
+    if (minutes >= 30) return { cls: "alarm", label: "🔴 Alarm" };
+    return { cls: "normal", label: minutes > 0 ? "⏳ Spike (<10m)" : "✅ Normal" };
+  }
+
+  function render(xmlText) {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(xmlText, "application/xml");
+    const table = document.querySelector("#fridgeTable tbody");
+    table.innerHTML = "";
+
+    const items = xml.querySelectorAll("u");
+    for (let i = 0; i < items.length; i += 6) {
+      const id = items[i]?.textContent?.trim();
+      const name = items[i + 1]?.textContent?.trim();
+      const temp = items[i + 2]?.textContent?.trim();
+
+      // только 1..19
+      const idNum = parseInt(id, 10);
+      if (!id || !(idNum >= 1 && idNum <= 19)) continue;
+
+      const st = determineStatus(name, temp, id);
+
+      const row = document.createElement("tr");
+      row.className = st.cls;
+      row.innerHTML = `
+        <td>${id}</td>
+        <td>${name ?? "-"}</td>
+        <td>${Number.isFinite(parseFloat(temp)) ? parseFloat(temp).toFixed(1) : "—"}</td>
+        <td>${st.label}</td>
+      `;
+      table.appendChild(row);
+    }
+  }
+
+  async function fetchData() {
+    const banner = document.querySelector("h2");
+    try {
+      const { url, text } = await tryCandidates();
+      banner.dataset.endpoint = url; // подсказка какой URL сработал
+      render(text);
+    } catch (e) {
+      console.error(e);
+      // покажем понятную ошибку на странице
+      const tbody = document.querySelector("#fridgeTable tbody");
+      tbody.innerHTML = `<tr><td colspan="4">Ошибка обновления: ${e.message}. Открой консоль (F12) → Console, смотри, какие URL пробовали.</td></tr>`;
+    }
+  }
+
+  fetchData();
+  setInterval(fetchData, 60000);
+</script>
 </body>
 </html>
