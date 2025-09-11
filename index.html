@@ -5,45 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>טמפרטורה במקררים</title>
   <style>
-    :root { --ok:#0fa36b; --bad:#e11d48; --warn:#b88700; --bg:#0b1324; --card:#0f172a; --muted:#94a3b8; }
+    :root { --ok:#16a34a; --bad:#ef4444; --warn:#b45309; --muted:#64748b; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0; background: linear-gradient(180deg,#0b1324,#0b1324 30%,#0e172a);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      color: #e5e7eb;
-    }
-    .wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-    header {
-      display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 12px;
-    }
-    h2 { margin: 0; font-size: 22px; letter-spacing: .3px; }
+    body { margin:0; background:#f5f7fb; color:#0f172a; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .wrap { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+    header { display:flex; gap:12px; align-items:center; justify-content:space-between; margin: 0 0 14px; }
+    h2 { margin:0; font-size: 22px; letter-spacing:.2px; }
     .chips { display:flex; gap:8px; flex-wrap:wrap; }
-    .chip { font-size:12px; padding:6px 10px; border-radius:999px; background:#111827; color:#cbd5e1; border:1px solid #1f2937; }
-    .card {
-      background: #0f172a; border:1px solid #1e293b; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
-      overflow: hidden;
-    }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      background: #0b1220; color:#cbd5e1; position: sticky; top:0; z-index:1; font-weight:600; letter-spacing:.2px;
-      padding: 12px; border-bottom:1px solid #1f2937;
-    }
-    tbody td { padding: 12px; border-bottom:1px solid #142033; }
-    tbody tr:hover { background: #0c1a2d; }
-    tr.ok { border-inline-start: 3px solid var(--ok); }
-    tr.alarm { border-inline-start: 3px solid var(--bad); }
-    tr.sensor { border-inline-start: 3px solid var(--warn); }
+    .chip { font-size:12px; padding:6px 10px; border-radius:999px; background:#ffffff; color:#334155; border:1px solid #e2e8f0; }
 
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:14px; }
+    .card { background:#ffffff; border:1px solid #e5e7eb; border-radius:14px; padding:14px; box-shadow: 0 6px 18px rgba(0,0,0,.06); display:flex; flex-direction:column; gap:10px; }
+    .card.ok { border-inline-start: 4px solid var(--ok); }
+    .card.alarm { border-inline-start: 4px solid var(--bad); }
+    .card.sensor { border-inline-start: 4px solid var(--warn); }
+
+    .top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .id { background:#f1f5f9; border:1px solid #e2e8f0; color:#0f172a; padding:4px 8px; border-radius:10px; font-weight:600; }
+    .name { font-weight:700; font-size:16px; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .temp { font-size:34px; font-weight:800; line-height:1; }
+    .num { direction:ltr; unicode-bidi:isolate; font-variant-numeric: tabular-nums; }
+
+    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; }
     .status { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
     .status.ok { color: var(--ok); }
     .status.alarm { color: var(--bad); }
     .status.sensor { color: var(--warn); }
+    .muted { color: var(--muted); }
 
-    /* аккуратные числа слева-направо и моноширинно для ровных столбцов */
-    .num { direction:ltr; unicode-bidi:isolate; font-variant-numeric: tabular-nums; }
-
-    .muted { color: var(--muted); font-size:12px; }
-    footer { text-align:center; color:#93a4bd; font-size:12px; margin-top:10px; }
+    footer { text-align:center; color:#64748b; font-size:12px; margin:16px 0 24px; }
   </style>
 </head>
 <body>
@@ -54,29 +45,15 @@
         <span class="chip">9°C↑ = Alarm מקרר</span>
         <span class="chip">−1°C↑ = Alarm מקפיא</span>
         <span class="chip">Alarm רק אם ≥ 30 דק'</span>
-        <span id="lastUpdate" class="chip muted">—</span>
+        <span id="lastUpdate" class="chip">—</span>
       </div>
     </header>
 
-    <div class="card">
-      <table id="fridgeTable" aria-label="Fridge temperatures">
-        <thead>
-          <tr>
-            <th style="width:76px">#</th>
-            <th>שם</th>
-            <th style="width:140px">טמפרטורה</th>
-            <th style="width:160px">סטטוס</th>
-            <th style="width:160px">משך עלייה (דקות)</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+    <div id="cards" class="grid" aria-live="polite"></div>
 
     <footer id="release"></footer>
   </div>
 
-  <!-- module нужен для await -->
   <script type="module">
     // ===== CONFIG =====
     const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status";
@@ -86,118 +63,128 @@
     const ALARM_FREEZER = -1;
     const ALARM_WINDOW_MIN = 30;
     const IGNORE_SPIKES_MIN = 10;
-    const LS_KEY = "fridge_history_v2";
+    const LS_KEY = "fridge_history_v3_cards";
 
-    // ===== utils =====
     const isFreezer = (name) => /מקפ|freez/i.test(name || "");
     const loadHistory = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } };
     const saveHistory = (h) => localStorage.setItem(LS_KEY, JSON.stringify(h));
-    const trimHistory = (h) => {
+
+    function trimHistory(h){
       const cutoff = Date.now() - HISTORY_MINUTES * 60_000;
-      for (const id of Object.keys(h)) {
-        h[id] = (h[id] || []).filter(e => e.t >= cutoff);
-        if (!h[id].length) delete h[id];
+      for (const k of Object.keys(h)) {
+        h[k] = (h[k] || []).filter(e => e.t >= cutoff);
+        if (!h[k].length) delete h[k];
       }
       return h;
-    };
-    const upsertReading = (hist, id, value) => {
+    }
+
+    function upsertReading(h, id, value){
       const t = Date.now();
-      if (!hist[id]) hist[id] = [];
-      hist[id].push({ v: value, t });
-      const arr = hist[id];
-      if (arr.length >= 2 && Math.abs(arr[arr.length-1].t - arr[arr.length-2].t) < 50_000) {
-        arr.splice(arr.length-2, 1);
+      if (!h[id]) h[id] = [];
+      h[id].push({ v: value, t });
+      const a = h[id];
+      if (a.length >= 2 && Math.abs(a[a.length-1].t - a[a.length-2].t) < 50_000) {
+        a.splice(a.length-2, 1);
       }
-    };
-    const sustainedAlarmMinutes = (series, threshold) => {
-      let minutes = 0;
+    }
+
+    function sustainedAlarmMinutes(series, thr){
+      let m = 0;
       for (let i = series.length - 1; i >= 0; i--) {
         const { v, t } = series[i];
-        if (v == null || isNaN(v)) return Infinity;
-        if (v > threshold) {
-          const prevT = i > 0 ? series[i-1].t : t;
-          minutes += Math.max(1, Math.round((t - prevT) / 60_000));
+        if (v == null || isNaN(v)) return Infinity; // сенсорная ошибка => бесконечность
+        if (v > thr) {
+          const pt = i > 0 ? series[i-1].t : t;
+          m += Math.max(1, Math.round((t - pt) / 60_000));
         } else break;
       }
-      return minutes;
-    };
-    const formatTemp = (v) => (v == null || !isFinite(v)) ? "—" : `${v.toFixed(1)}°C`; // знак уходит в .num (LTR)
+      return m;
+    }
 
-    // ===== parse XML =====
-    function parseXMLToRecords(xmlText) {
+    function parseXMLToRecords(xmlText){
       const xml = new DOMParser().parseFromString(xmlText, "application/xml");
       if (xml.documentElement.nodeName === "parsererror") throw new Error("Неверный XML");
       const map = {};
-      xml.querySelectorAll("u").forEach(node => {
-        const m = (node.getAttribute("i") || "").match(/list_(\d+)/);
-        if (m) map[+m[1]] = (node.textContent || "").trim();
+      xml.querySelectorAll("u").forEach(n => {
+        const m = (n.getAttribute("i") || "").match(/list_(\\d+)/);
+        if (m) map[+m[1]] = (n.textContent || "").trim();
       });
       const keys = Object.keys(map).map(Number).sort((a,b)=>a-b);
-      const records = [];
+      const out = [];
       for (const base of keys) {
         if (base % 6 !== 0) continue;
         const idRaw = map[base], name = map[base+1], tempRaw = map[base+2];
         if (!idRaw || !name) continue;
         const idNum = parseInt(String(idRaw), 10);
         if (!(idNum >= 1 && idNum <= 19)) continue;
-        const tempNum = Number(String(tempRaw ?? "").replace(",", "."));
-        records.push({ id: String(idRaw), name, temp: isFinite(tempNum) ? tempNum : null });
+        const tnum = Number(String(tempRaw ?? "").replace(",", "."));
+        out.push({ id: String(idRaw), name, temp: isFinite(tnum) ? tnum : null });
       }
-      return records;
+      return out;
     }
 
-    // ===== render =====
-    function render(rows, hist) {
-      const tbody = document.querySelector("#fridgeTable tbody");
-      tbody.innerHTML = "";
+    function cardHTML(r, minutes, cls){
+      const label =
+        cls === "alarm" ? "Alarm 🔴" :
+        cls === "sensor" ? "Sensor ⚠️" :
+        (minutes > 0 && minutes < IGNORE_SPIKES_MIN ? "Spike ⏳ (<10m)" : "Normal ✅");
+
+      const temp = (r.temp == null || !isFinite(r.temp)) ? "—" : `${r.temp.toFixed(1)}°C`;
+
+      return `
+        <div class="card ${cls}">
+          <div class="top">
+            <div class="id num">${r.id}</div>
+            <div class="name" title="${r.name}">${r.name}</div>
+          </div>
+          <div class="temp num">${temp}</div>
+          <div class="row">
+            <span class="status ${cls}">${label}</span>
+            <span class="muted">דקות ↑: <span class="num">${Number.isFinite(minutes) ? minutes : "∞"}</span></span>
+          </div>
+        </div>`;
+    }
+
+    function render(rows, hist){
+      const grid = document.getElementById("cards");
+      grid.innerHTML = "";
+      const frag = document.createDocumentFragment();
 
       rows.forEach(r => {
         const thr = isFreezer(r.name) ? ALARM_FREEZER : ALARM_FRIDGE;
         const minutes = sustainedAlarmMinutes(hist[r.id] || [], thr);
         const isAlarm = minutes >= ALARM_WINDOW_MIN;
-        const isSpike = minutes > 0 && minutes < IGNORE_SPIKES_MIN;
+        const cls = r.temp == null ? "sensor" : (isAlarm ? "alarm" : "ok");
 
-        let cls = "ok", label = "Normal ✅";
-        if (r.temp == null) { cls = "sensor"; label = "Sensor ⚠️"; }
-        else if (isAlarm) { cls = "alarm"; label = "Alarm 🔴"; }
-        else if (isSpike) { cls = "ok"; label = "Spike ⏳ (<10m)"; }
-
-        const tr = document.createElement("tr");
-        tr.className = cls;
-        tr.innerHTML = `
-          <td class="num">${r.id}</td>
-          <td>${r.name}</td>
-          <td class="num">${formatTemp(r.temp)}</td>
-          <td><span class="status ${cls}">${label}</span></td>
-          <td class="num">${Number.isFinite(minutes) ? minutes : "∞"}</td>
-        `;
-        tbody.appendChild(tr);
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = cardHTML(r, minutes, cls);
+        frag.appendChild(wrapper.firstElementChild);
       });
+
+      grid.appendChild(frag);
     }
 
-    // ===== loop =====
-    async function tick() {
+    async function tick(){
       const lastEl = document.getElementById("lastUpdate");
       const hist = trimHistory(loadHistory());
       try {
         const resp = await fetch(DATA_URL, { cache: "no-store" });
         if (!resp.ok) throw new Error("HTTP " + resp.status);
-        const xmlText = await resp.text();
-        const rows = parseXMLToRecords(xmlText);
+        const xml = await resp.text();
+        const rows = parseXMLToRecords(xml);
         rows.forEach(r => upsertReading(hist, r.id, r.temp));
         saveHistory(hist);
         render(rows, hist);
         lastEl.textContent = "Обновлено: " + new Date().toLocaleString();
       } catch (e) {
-        const tbody = document.querySelector("#fridgeTable tbody");
-        tbody.innerHTML = `<tr><td colspan="5">Ошибка обновления: ${e.message}</td></tr>`;
+        document.getElementById("cards").innerHTML = `<div class="card sensor">Ошибка обновления: ${e.message}</div>`;
         lastEl.textContent = "Ошибка";
         console.error(e);
       }
     }
+
     tick();
     setInterval(tick, POLL_MS);
-
     document.getElementById("release").textContent = "Last release: 2025-09-12";
   </script>
 </body>
