@@ -1,262 +1,84 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-  <meta charset="utf-8" />
-  <title>סידור עבודה — ראשי</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>טמפרטורה במקררים</title>
   <style>
-    :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
-    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;flex-wrap:wrap}
-    header h1{font-size:18px;margin:0}
-    header nav a{color:var(--accent);text-decoration:none}
-    .wrap{padding:14px 18px;display:flex;flex-direction:column;gap:12px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:12px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-    .btn{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;cursor:pointer}
-    .btn.ghost{background:#eef4ff;color:#1a73e8}
-    .btn.icon{background:#ffecee;color:#c62828;border-radius:8px;padding:2px 8px;line-height:1}
-    .note{font-size:12px;color:var(--muted)}
-    .grid{display:flex;gap:16px;overflow-x:auto;padding:8px 0}
-    .day{flex:0 0 320px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
-    .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
-    .head .dow{font-weight:700}
-    .head .date{font-size:14px;color:#666}
-    .section{margin-top:8px}
-    .section h3{margin:0 0 6px;font-size:14px}
-    ol{list-style:none;margin:0;padding:0}
-    li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0}
-    .li-txt{flex:1}
-    .li-num{opacity:.7;min-width:2.4em}
-    .empty{color:#999;font-style:italic}
-    .addRow{display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap}
-    select,input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+    body { font-family: sans-serif; direction: rtl; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    .alarm { background-color: #ffcccc; color: #900; font-weight: bold; }
+    .normal { background-color: #ccffcc; color: #060; }
   </style>
-
-  <!-- PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <!-- Firebase compat SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script>
-    // ТВОЙ КОНФИГ (из Web App)
-    const firebaseConfig = {
-      apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
-      authDomain: "keen-berm-470615-h6.firebaseapp.com",
-      projectId: "keen-berm-470615-h6",
-      storageBucket: "keen-berm-470615-h6.firebasestorage.app",
-      messagingSenderId: "772648903570",
-      appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
-      measurementId: "G-7VGNRGC0G7"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth=firebase.auth(); const db=firebase.firestore();
-    // На главной можно читать и без логина (если правила allow read: if true)
-    const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
-  </script>
 </head>
 <body>
-  <header>
-    <h1>סידור עבודה — ראשי</h1>
-    <nav><a href="settings.html">⚙️ הגדרות / Настройки</a></nav>
-  </header>
-
-  <main class="wrap">
-    <section class="card">
-      <div class="row" style="justify-content:space-between">
-        <label class="row" style="gap:8px"><input type="checkbox" id="showBO"> להציג בק־אופיס</label>
-        <div class="row">
-          <button class="btn ghost" id="btnPdf">Export PDF</button>
-          <span class="note" id="status">…</span>
-        </div>
-      </div>
-      <div class="grid" id="grid"></div>
-    </section>
-
-    <section class="card">
-      <strong>הוספה מהירה ליום</strong>
-      <div class="note">Быстро добавить сотрудника в конкретный день/смену. Сохраняется сразу в облаке.</div>
-      <div class="addRow">
-        <select id="daySel"></select>
-        <select id="partSel"><option value="m">בוקר</option><option value="e">ערב</option></select>
-        <input type="text" id="nameQuick" placeholder="Имя / שם">
-        <input type="text" id="timeQuick" placeholder="9-12 / 17-22 (опц.)">
-        <button class="btn" id="btnQuickAdd">+</button>
-      </div>
-    </section>
-  </main>
+  <h2>טמפרטורה במקררים (1–19)</h2>
+  <table id="fridgeTable">
+    <thead>
+      <tr><th>#</th><th>שם</th><th>טמפרטורה</th><th>סטטוס</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
   <script>
-    // ===== модель =====
-    let weekISO=[]; // ['YYYY-MM-DD' x7]
-    // employees: [{name, backend, shifts:{ d0:[{start,end,text}], ..., d6:[...] }}]
-    let employees=[];
+    const history = {}; // для хранения истории температур
 
-    const COL='schedules';
-    function parseOneRange(s){
-      const m = (s||'').trim().match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
-      if(!m) return null;
-      const [,h1,mi1,h2,mi2]=m;
-      const sh=+h1+(mi1?+mi1:0)/60, eh=+h2+(mi2?+mi2:0)/60;
-      const txt=`${+h1}${mi1?':'+String(+mi1).padStart(2,'0'):''}-${+h2}${mi2?':'+String(+mi2).padStart(2,'0'):''}`;
-      return {start:sh,end:eh,text:txt};
-    }
-    function splitRanges(cell){ return (cell||'').split(/[,\s]+/).map(parseOneRange).filter(Boolean); }
-    function bucketByPart(r){ if(r.start<11) return 'm'; if(r.end>17||r.start>=12) return 'e'; return null; }
-
-    async function loadCloud(){
-      status.textContent='Loading…';
-      try{
-        const snap=await db.collection(COL).doc(SITE_ID).get();
-        if(snap.exists){
-          const data=snap.data()||{};
-          if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
-          if(Array.isArray(data.employees)) employees=data.employees;
-          status.textContent='Loaded ✓';
-        } else {
-          status.textContent='No data (open Settings)';
-        }
-        renderAll();
-      }catch(err){
-        status.textContent='Read error';
-        alert('Ошибка чтения Firestore:\n'+(err.message||err.code||String(err)));
-      }
-    }
-    let saveTimer=null;
-    function autoSave(){
-      clearTimeout(saveTimer);
-      saveTimer=setTimeout(async ()=>{
-        try{
-          status.textContent='Saving…';
-          await db.collection(COL).doc(SITE_ID).set({weekISO,employees,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-          status.textContent='Saved ✓';
-        }catch(err){
-          status.textContent='Save error';
-          alert('Ошибка сохранения:\n'+(err.message||err.code||String(err)));
-        }
-      },300);
+    function isFreezer(name) {
+      return name.includes("מקפיא") || name.toLowerCase().includes("freezer");
     }
 
-    function buildDay(i){
-      const day={m:[],e:[]};
-      employees.forEach((emp,empIndex)=>{
-        if(emp.backend && !showBO.checked) return;
-        const arr=(emp.shifts && emp.shifts['d'+i])||[];
-        arr.forEach(r=>{
-          const b=bucketByPart(r);
-          if(b==='m') day.m.push({name:emp.name,time:r.text,empIndex});
-          if(b==='e') day.e.push({name:emp.name,time:r.text,empIndex});
-        });
-      });
-      day.m.sort((a,b)=>a.name.localeCompare(b.name,'he-IL'));
-      day.e.sort((a,b)=>a.name.localeCompare(b.name,'he-IL'));
-      return day;
+    function determineStatus(name, temp, id) {
+      const now = Date.now();
+      const threshold = isFreezer(name) ? -1 : 9;
+      const alarm = parseFloat(temp) > threshold;
+
+      if (!history[id]) history[id] = [];
+      history[id].push({ time: now, temp: parseFloat(temp), alarm });
+
+      // оставим только записи за последние 60 минут
+      history[id] = history[id].filter(e => now - e.time < 60 * 60 * 1000);
+
+      // если тревожное значение держится более 30 минут
+      const alarmPeriods = history[id].filter(e => e.alarm);
+      const firstAlarm = alarmPeriods[0]?.time;
+      const longEnough = firstAlarm && (now - firstAlarm > 30 * 60 * 1000);
+
+      return alarm && longEnough ? "alarm" : "normal";
     }
 
-    function renderAll(){
-      // селект дней
-      daySel.innerHTML='';
-      weekISO.forEach((iso,i)=>{
-        const o=document.createElement('option'); o.value=String(i);
-        o.textContent=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][i]+' — '+new Date(iso).toLocaleDateString('he-IL');
-        daySel.appendChild(o);
-      });
+    async function fetchData() {
+      const response = await fetch("http://109.67.166.227:82/cgi-bin/cgi.cgi?Status");
+      const text = await response.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(text, "application/xml");
 
-      grid.innerHTML='';
-      if(weekISO.length!==7){ grid.innerHTML='<div class="note">Нет данных. Зайдите в настройки.</div>'; return; }
-      for(let i=0;i<7;i++){
-        const day=buildDay(i);
-        const card=document.createElement('div'); card.className='day';
-        const head=document.createElement('div'); head.className='head';
-        head.innerHTML=`<div class="dow">${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][i]}</div>
-                        <div class="date">${new Date(weekISO[i]).toLocaleDateString('he-IL')}</div>`;
-        card.appendChild(head);
+      const table = document.querySelector("#fridgeTable tbody");
+      table.innerHTML = "";
 
-        const secM=document.createElement('div'); secM.className='section'; secM.innerHTML='<h3>בוקר</h3>';
-        if(day.m.length){
-          const ol=document.createElement('ol');
-          day.m.forEach((p,idx)=>{
-            const li=document.createElement('li');
-            const span=document.createElement('span'); span.className='li-txt';
-            span.innerHTML=`<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
-            const del=document.createElement('button'); del.className='btn icon'; del.textContent='×';
-            del.onclick=()=>{
-              const key='d'+i;
-              const arr=employees[p.empIndex].shifts[key]||[];
-              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='m'||r.text!==p.time);
-              autoSave(); renderAll();
-            };
-            li.appendChild(span); li.appendChild(del); ol.appendChild(li);
-          });
-          secM.appendChild(ol);
-        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secM.appendChild(em); }
-        card.appendChild(secM);
+      const items = xml.querySelectorAll("u");
+      for (let i = 0; i < items.length; i += 6) {
+        const id = items[i]?.textContent;
+        const name = items[i+1]?.textContent;
+        const temp = items[i+2]?.textContent;
 
-        const secE=document.createElement('div'); secE.className='section'; secE.innerHTML='<h3>ערב</h3>';
-        if(day.e.length){
-          const ol=document.createElement('ol');
-          day.e.forEach((p,idx)=>{
-            const li=document.createElement('li');
-            const span=document.createElement('span'); span.className='li-txt';
-            span.innerHTML=`<span class="li-num">${idx+1}.</span> ${p.name}${p.time?` — ${p.time}`:''}`;
-            const del=document.createElement('button'); del.className='btn icon'; del.textContent='×';
-            del.onclick=()=>{
-              const key='d'+i;
-              const arr=employees[p.empIndex].shifts[key]||[];
-              employees[p.empIndex].shifts[key]=arr.filter(r=>bucketByPart(r)!=='e'||r.text!==p.time);
-              autoSave(); renderAll();
-            };
-            li.appendChild(span); li.appendChild(del); ol.appendChild(li);
-          });
-          secE.appendChild(ol);
-        } else { const em=document.createElement('div'); em.className='empty'; em.textContent='—'; secE.appendChild(em); }
-        card.appendChild(secE);
+        if (!id || parseInt(id) > 19) continue;
 
-        grid.appendChild(card);
+        const status = determineStatus(name, temp, id);
+
+        const row = document.createElement("tr");
+        row.className = status;
+        row.innerHTML = `
+          <td>${id}</td>
+          <td>${name}</td>
+          <td>${temp}</td>
+          <td>${status === "alarm" ? "🔴 Alarm" : "✅ Normal"}</td>
+        `;
+        table.appendChild(row);
       }
     }
 
-    btnQuickAdd.onclick=()=>{
-      const dayIdx=+daySel.value, part=partSel.value;
-      const name=(nameQuick.value||'').trim(), time=(timeQuick.value||'').trim();
-      if(!name){ alert('Введите имя'); return; }
-      let emp=employees.find(e=>(e.name||'').trim()===name);
-      if(!emp){ emp={name,backend:false,shifts:{}}; for(let i=0;i<7;i++) emp.shifts['d'+i]=[]; employees.push(emp); }
-      const key='d'+dayIdx; emp.shifts[key]=emp.shifts[key]||[];
-      if(time){ splitRanges(time).forEach(r=>{ if((part==='m'&&bucketByPart(r)==='m')||(part==='e'&&bucketByPart(r)==='e')) emp.shifts[key].push(r); }); }
-      else { emp.shifts[key].push(part==='m'?{start:9,end:12,text:'9-12'}:{start:18,end:22,text:'18-22'}); }
-      nameQuick.value=''; timeQuick.value='';
-      autoSave(); renderAll();
-    };
-
-    showBO.onchange=()=>renderAll();
-
-    btnPdf.onclick=()=>{
-      if(weekISO.length!==7){ alert('Нет данных'); return; }
-      const container=document.createElement('div'); container.style.padding='16px'; container.style.fontFamily='Arial,Helvetica,sans-serif';
-      const title=document.createElement('h2'); title.textContent='סידור עבודה'; title.style.textAlign='center'; container.appendChild(title);
-      for(let i=0;i<7;i++){
-        const block=document.createElement('div'); block.style.border='1px solid #e6e6e6'; block.style.borderRadius='10px'; block.style.padding='10px'; block.style.marginBottom='10px'; block.style.background='#fff';
-        const h=document.createElement('h3'); h.textContent=`${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][i]} — ${new Date(weekISO[i]).toLocaleDateString('he-IL')}`; h.style.margin='0 0 6px';
-        const day=buildDay(i);
-        const two=document.createElement('div'); two.style.display='flex'; two.style.gap='10px';
-        function col(tt,arr){
-          const c=document.createElement('div'); c.style.flex='1';
-          const th=document.createElement('div'); th.textContent=tt; th.style.background='#eef4ff'; th.style.border='1px solid #dde3ea'; th.style.padding='5px 7px'; th.style.fontWeight='700';
-          const body=document.createElement('div'); body.style.border='1px solid #e8edf3'; body.style.padding='5px 7px';
-          if(arr.length){ arr.forEach((p,idx)=>{ const line=document.createElement('div'); line.textContent=`${idx+1}. ${p.name}${p.time?` — ${p.time}`:''}`; body.appendChild(line); }); }
-          else { const d=document.createElement('div'); d.textContent='—'; d.style.color='#999'; body.appendChild(d); }
-          c.appendChild(th); c.appendChild(body); return c;
-        }
-        two.appendChild(col('בוקר',day.m)); two.appendChild(col('ערב',day.e));
-        block.appendChild(h); block.appendChild(two); container.appendChild(block);
-      }
-      html2pdf().set({margin:10,filename:'schedule.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(container).save();
-    };
-
-    loadCloud();
+    fetchData();
+    setInterval(fetchData, 60000); // обновление каждые 60 секунд
   </script>
 </body>
 </html>
