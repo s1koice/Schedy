@@ -48,27 +48,21 @@
   <footer id="release"></footer>
 
   <script>
+  const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status";
   const history = {}; // история температур
 
   function isFreezer(name) {
     return (name || "").includes("מקפיא") || (name || "").toLowerCase().includes("freezer");
   }
 
-  // Кандидаты эндпоинтов (добавь/убери при необходимости)
-  const CANDIDATES = [
-    "http://109.67.166.227:82/cgi-bin/cgi.cgi?Status",
-    "http://109.67.166.227:82/cgi-bin/cgi.cgi?MobileOverview",
-    "http://109.67.166.227:82/cgi-bin/cgi.cgi?MobileSummary"
-  ];
+ 
 
-  async function tryCandidates() {
-    for (const url of CANDIDATES) {
-      try {
-        const resp = await fetch(url, { cache: "no-store" });
-        if (!resp.ok) {
-          console.warn("Endpoint", url, "-> HTTP", resp.status);
-          continue;
-        }
+    async function fetchData() {
+  const resp = await fetch(DATA_URL, { cache: "no-store" });
+  const text = await resp.text();
+  // дальше у тебя уже есть render(text) или парсинг XML → оставь как было
+  render(text);
+}
         const text = await resp.text();
         // ищем признак XML с данными
         if (text.includes("<update") && text.includes('i="list_')) {
