@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Конструктор графика</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --accent:#1a73e8; }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:#fff;border-bottom:1px solid var(--line)}
+    header h1{font-size:18px;margin:0}
+    header nav a{color:var(--accent);text-decoration:none}
+    .wrap{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .filelabel{display:inline-flex;align-items:center;gap:10px;border:1px dashed var(--line);padding:10px 14px;border-radius:12px;background:#fff;cursor:pointer}
+    input[type="file"]{display:none}
+    .note{font-size:12px;color:var(--muted)}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:6px 4px;font-size:13px;vertical-align:top}
+    th{text-align:left}
+    input[type="text"]{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px;width:100%}
+    .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .col{border:1px solid var(--line);border-radius:10px;padding:8px;background:#fff}
+    .col h4{margin:0 0 6px}
+    footer{margin:16px 18px;color:#888;font-size:11px}
+  </style>
+
+  <!-- Mammoth for DOCX -->
+  <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
+      authDomain: "keen-berm-470615-h6.firebaseapp.com",
+      projectId: "keen-berm-470615-h6",
+      storageBucket: "keen-berm-470615-h6.firebasestorage.app",
+      messagingSenderId: "772648903570",
+      appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
+      measurementId: "G-7VGNRGC0G7"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth(); const db=firebase.firestore();
+    const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
+
+    // ждём анонимный логин для записи
+    let _authReadyResolve; const authReady=new Promise(r=>{_authReadyResolve=r;});
+    auth.onAuthStateChanged(u=>{ if(u) _authReadyResolve(u); });
+    auth.signInAnonymously().catch(err=>{
+      console.error('Auth error:',err);
+      const s=document.getElementById('status'); if(s) s.textContent='Auth error: '+(err.message||err.code||err);
+    });
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Конструктор графика</h1>
+    <nav><a href="index.html">← На дашборд</a></nav>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="row">
+        <label class="filelabel" for="docxInput">Загрузить DOCX</label>
+        <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <span class="note" id="status">…</span>
+      </div>
+      <div class="note">Формат: имя на строке; далее 7 значений (OFF / P / «9-21» / «9-12, 17-22»). Комментарии после времени игнорируются.</div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <strong>Неделя</strong><div class="note" id="weekNote"></div>
+      </div>
+      <div class="grid" id="weekGrid"></div>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between">
+        <strong>Сотрудники</strong>
+        <div class="row">
+          <input type="text" id="newName" placeholder="Имя / שם" />
+          <label class="row" style="gap:6px"><input type="checkbox" id="newBO"> Backoffice</label>
+          <button class="btn" id="btnAdd">Добавить</button>
+        </div>
+      </div>
+      <table id="empTable">
+        <thead>
+          <tr><th>Имя</th><th>Backoffice</th><th>Смены (по дням, через запятую: 9-12,17-22)</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    <span id="releaseInfo">Release: 2025-08-15 00:00 (Asia/Jerusalem)</span>
+  </footer>
+
+  <script>
+    /* ===== модель ===== */
+    let weekISO=[];                      // 7 дат ISO
+    let employees=[];                    // [{name, backend, shifts:{d0:[],...,d6:[]}}]
+    const COL='schedules';
+    const weekdaysFull=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+    /* ===== утилиты парсинга ===== */
+    async function extractTextFromDocx(file){
+      const ab=await file.arrayBuffer();
+      const { value } = await window.mammoth.extractRawText({ arrayBuffer: ab });
+      return value.replace(/\u000b/g,'\n');
+    }
+    function findWeekDDMM(text){
+      const tokens = Array.from(text.matchAll(/\b(\d{1,2}-\d{1,2})\b/g)).map(m=>m[1]);
+      for(let i=0;i+6<tokens.length;i++){
+        const s=tokens.slice(i,i+7);
+        if(s.every(x=>{const [d,m]=x.split('-').map(Number); return d>=1&&d<=31&&m>=1&&m<=12;})) return s;
+      }
+      return [];
+    }
+    function toISO(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+    function buildWeekISOFromDDMM(ddmm){
+      const y=new Date().getFullYear();
+      return ddmm.map(s=>{ const [d,m]=s.split('-').map(Number); return toISO(y,m,d); });
+    }
+    function isShiftToken(t){
+      if(!t) return false;
+      const clean=t.trim();
+      if(/^off$/i.test(clean) || /^p$/i.test(clean)) return true;
+      return /(\d{1,2}(?::?\d{1,2})?)-(\d{1,2}(?::?\d{1,2})?)/.test(clean);
+    }
+    function looksLikeName(s){
+      if(!s) return false;
+      if(/\d+-\d+/.test(s)) return false;
+      return /[\p{L}]{2,}/u.test(s);
+    }
+    function parseOneRange(s){
+      const m=(s||'').trim().match(/^(\d{1,2})(?::?(\d{1,2}))?-(\d{1,2})(?::?(\d{1,2}))?$/);
+      if(!m) return null;
+      const [,h1,mi1,h2,mi2]=m;
+      const sh=+h1+(mi1?+mi1:0)/60, eh=+h2+(mi2?+mi2:0)/60;
+      const txt=`${+h1}${mi1?':'+String(+mi1).padStart(2,'0'):''}-${+h2}${mi2?':'+String(+mi2).padStart(2,'0'):''}`;
+      return {start:sh,end:eh,text:txt};
+    }
+    function splitRanges(cell){ return (cell||'').split(/[,\s]+/).map(parseOneRange).filter(Boolean); }
+
+    function parseFromRaw(raw){
+      const ddmm=findWeekDDMM(raw);
+      if(ddmm.length!==7) throw new Error('Не нашёл 7 дат dd-mm подряд.');
+      weekISO=buildWeekISOFromDDMM(ddmm);
+
+      const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const rows=[];
+      for(let i=0;i<lines.length;i++){
+        const line=lines[i];
+        if(looksLikeName(line)){
+          const vals=[]; let j=i+1;
+          while(j<lines.length && vals.length<7){
+            const t=lines[j].trim();
+            if(isShiftToken(t)) vals.push(t);
+            j++;
+          }
+          if(vals.length===7){ rows.push({name:line, values:vals}); i=j-1; }
+        }
+      }
+      employees = rows.map(r=>{
+        const shifts={};
+        for(let d=0; d<7; d++){
+          const cell=r.values[d];
+          if(/^off$/i.test(cell)){ shifts['d'+d]=[]; continue; }
+          if(/^p$/i.test(cell)){ shifts['d'+d]=[{start:9,end:12,text:'9-12'},{start:18,end:22,text:'18-22'}]; continue; }
+          shifts['d'+d]=splitRanges(cell);
+        }
+        return {name:r.name.trim(), backend:false, shifts};
+      });
+    }
+
+    /* ===== Firestore I/O ===== */
+    let saveTimer=null;
+    async function loadCloud(){
+      const s=document.getElementById('status');
+      try{
+        s.textContent='Loading…';
+        await authReady;
+        const snap=await db.collection(COL).doc(SITE_ID).get();
+        if(snap.exists){
+          const data=snap.data()||{};
+          if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
+          if(Array.isArray(data.employees)) employees=data.employees;
+          s.textContent='Loaded ✓';
+        } else {
+          s.textContent='No data yet';
+        }
+        renderAll();
+      }catch(err){
+        console.error('Load error:',err);
+        s.textContent='Load error: '+(err.message||err.code||err);
+        alert('Ошибка чтения Firestore:\n'+(err.message||err.code||String(err)));
+      }
+    }
+    function autoSave(){
+      clearTimeout(saveTimer);
+      saveTimer=setTimeout(async ()=>{
+        const s=document.getElementById('status');
+        try{
+          s.textContent='Saving…';
+          await authReady;
+          await db.collection(COL).doc(SITE_ID).set({weekISO,employees,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+          s.textContent='Saved ✓';
+          renderAll();
+        }catch(err){
+          console.error('Save error:',err);
+          s.textContent='Save error: '+(err.message||err.code||err);
+          alert('Ошибка сохранения Firestore:\n'+(err.message||err.code||String(err)));
+        }
+      },300);
+    }
+
+    /* ===== UI ===== */
+    const weekGrid=document.getElementById('weekGrid');
+    const weekNote=document.getElementById('weekNote');
+    const tbody=document.querySelector('#empTable tbody');
+
+    function renderWeek(){
+      weekGrid.innerHTML='';
+      if(weekISO.length!==7){ weekNote.textContent='Неделя не определена (загрузите DOCX)'; return; }
+      weekNote.textContent='Неделя определена';
+      for(let i=0;i<7;i++){
+        const col=document.createElement('div'); col.className='col';
+        const h4=document.createElement('h4'); h4.textContent=`${weekdaysFull[i]} — ${new Date(weekISO[i]).toLocaleDateString('he-IL')}`;
+        let total=0; employees.forEach(e=> total += (e.shifts && e.shifts['d'+i] ? e.shifts['d'+i].length : 0));
+        const p=document.createElement('div'); p.className='note'; p.textContent=`Интервалов: ${total}`;
+        col.appendChild(h4); col.appendChild(p); weekGrid.appendChild(col);
+      }
+    }
+    function renderEmployees(){
+      tbody.innerHTML='';
+      employees.forEach((e,idx)=>{
+        const tr=document.createElement('tr');
+
+        const tdN=document.createElement('td');
+        const inp=document.createElement('input'); inp.type='text'; inp.value=e.name||'';
+        inp.onchange=()=>{ e.name=inp.value.trim(); autoSave(); };
+        tdN.appendChild(inp); tr.appendChild(tdN);
+
+        const tdB=document.createElement('td');
+        const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!e.backend;
+        cb.onchange=()=>{ e.backend=cb.checked; autoSave(); };
+        tdB.appendChild(cb); tr.appendChild(tdB);
+
+        const tdS=document.createElement('td');
+        const grid=document.createElement('div'); grid.style.display='grid'; grid.style.gridTemplateColumns='repeat(7,1fr)'; grid.style.gap='6px';
+        for(let d=0; d<7; d++){
+          const cell=document.createElement('input'); cell.type='text';
+          const arr=(e.shifts && e.shifts['d'+d])||[];
+          cell.value=arr.map(r=>r.text).join(',');
+          cell.placeholder=weekdaysFull[d];
+          cell.onchange=()=>{
+            const v=cell.value.trim();
+            if(!e.shifts) e.shifts={};
+            e.shifts['d'+d]= v? v.split(/[,\s]+/).map(parseOneRange).filter(Boolean) : [];
+            autoSave();
+          };
+          grid.appendChild(cell);
+        }
+        tdS.appendChild(grid); tr.appendChild(tdS);
+
+        const tdA=document.createElement('td');
+        const del=document.createElement('button'); del.className='btn'; del.textContent='×';
+        del.onclick=()=>{ employees.splice(idx,1); autoSave(); renderAll(); };
+        tdA.appendChild(del); tr.appendChild(tdA);
+
+        tbody.appendChild(tr);
+      });
+    }
+    function renderAll(){ renderWeek(); renderEmployees(); }
+
+    // события
+    docxInput.onchange = async (e)=>{
+      const f=e.target.files?.[0]; if(!f) return;
+      try{
+        status.textContent='Parsing…';
+        const raw=await extractTextFromDocx(f);
+        parseFromRaw(raw);
+        autoSave();
+      }catch(err){
+        console.error(err);
+        status.textContent='Error';
+        alert('Ошибка чтения/парсинга DOCX: '+err.message);
+      }
+    };
+    btnAdd.onclick=()=>{
+      const name=(newName.value||'').trim(); const bo=newBO.checked;
+      if(!name) return;
+      const shifts={}; for(let i=0;i<7;i++) shifts['d'+i]=[];
+      employees.push({name, backend:bo, shifts});
+      newName.value=''; newBO.checked=false; autoSave(); renderAll();
+    };
+
+    // init
+    auth.onAuthStateChanged(u=>{ if(u) loadCloud(); });
+  </script>
+</body>
+</html>
