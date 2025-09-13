@@ -14,7 +14,7 @@
     header{position:sticky;top:0;z-index:10;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(#fff,#fafcff);border-bottom:1px solid var(--line)}
     header h1{font-size:18px;margin:0}
     header .actions{display:flex;gap:8px;flex-wrap:wrap}
-    .btn{border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:10px;padding:8px 12px;font-size:13px;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:10px;padding:8px 12px;font-size:13px;text-decoration:none;display:inline-flex;gap:8px;align-items:center;cursor:pointer}
     .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
     .wrap{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
     .section{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(20,30,50,.06);padding:12px}
@@ -73,7 +73,10 @@
 
     <!-- Алармы холодильников -->
     <section class="section" id="fridgeSection">
-      <h2>Алармы холодильников</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h2 style="margin:0">Алармы холодильников</h2>
+        <button id="toggleAll" class="btn" style="padding:6px 10px;border-radius:8px">Показать все</button>
+      </div>
       <div class="note" id="fridgeNote">Загружаю…</div>
       <div class="grid" id="fridgeGrid"></div>
     </section>
@@ -94,7 +97,7 @@
       </div>
     </section>
 
-    <!-- Отделы (опционально, если есть dept в данных смен) -->
+    <!-- Отделы (если в сменах указан dept) -->
     <section class="section" id="deptSection" style="display:none">
       <h2>По отделам (сегодня)</h2>
       <div class="dept-grid" id="deptGrid"></div>
@@ -103,46 +106,96 @@
   </main>
 
   <footer>
-    <span id="releaseInfo">Release: 2025-08-15 00:00 (Asia/Jerusalem)</span>
+    <span id="releaseInfo">Release: 2025-09-14 12:05 (Asia/Jerusalem)</span>
     <span id="dbg" style="margin-left:10px"></span>
   </footer>
 
   <script>
-    // ========== Утилиты ==========
+    // ===== Утилиты =====
     function bucketByPart(r){ if(r.start<11) return 'm'; if(r.end>17 || r.start>=12) return 'e'; return null; }
     function toLocalISO(date){ const d=new Date(date.getTime()-date.getTimezoneOffset()*60000); return d.toISOString().slice(0,10); }
 
-    // ========== FRIDGES (live) ==========
-    const FRIDGES = db.collection('sites').doc(SITE_ID).collection('fridges');
-    const fridgeGrid=document.getElementById('fridgeGrid');
-    const fridgeNote=document.getElementById('fridgeNote');
+    // ===== FRIDGES (читаем и fridges, и frizers) =====
+    const FRIDGES_A = db.collection('sites').doc(SITE_ID).collection('fridges');
+    const FRIDGES_B = db.collection('sites').doc(SITE_ID).collection('frizers');
 
-    FRIDGES.onSnapshot(snap=>{
-      const all = snap.docs.map(d=>({id:d.id, ...d.data()}));
-      const alarms = all.filter(x => (x.status||'ok') !== 'ok');
+    const fridgeGrid = document.getElementById('fridgeGrid');
+    const fridgeNote = document.getElementById('fridgeNote');
+    const toggleAllBtn = document.getElementById('toggleAll');
+
+    const DEFAULT_MIN = -50;
+    const DEFAULT_MAX = 10;
+    let showAll = false;
+    let a=[], b=[];
+
+    function isAlarm(doc){
+      const s = (doc.status ?? '').toString().toLowerCase().trim();
+      const alarmFlag = doc.alarm === true;
+      const minT = (typeof doc.minTemp === 'number') ? doc.minTemp : DEFAULT_MIN;
+      const maxT = (typeof doc.maxTemp === 'number') ? doc.maxTemp : DEFAULT_MAX;
+      const tempAlarm = (typeof doc.temp === 'number') && (doc.temp < minT || doc.temp > maxT);
+      return (s && s !== 'ok') || alarmFlag || tempAlarm;
+    }
+
+    function renderFridges(){
+      const all = [...a, ...b];
+      const alarms = all.filter(isAlarm);
       fridgeGrid.innerHTML='';
-      if(alarms.length===0){
-        fridgeNote.textContent='Алармов нет. Все холодильники в норме.';
+
+      if (!all.length){
+        fridgeNote.textContent = 'Нет документов в fridges/frizers. Добавь пару штук в Firestore.';
         return;
       }
-      fridgeNote.textContent = `В аларме: ${alarms.length}`;
-      alarms.forEach(f=>{
+
+      const list = showAll ? all : alarms;
+      fridgeNote.textContent = showAll
+        ? `Всего: ${all.length}  •  Алармов: ${alarms.length}`
+        : (alarms.length ? `В аларме: ${alarms.length}` : 'Алармов нет');
+
+      if (!list.length){
+        const stub=document.createElement('div'); stub.className='card'; stub.textContent = showAll ? 'Пусто' : 'Все в норме';
+        fridgeGrid.appendChild(stub);
+        return;
+      }
+
+      list.forEach(f=>{
         const card=document.createElement('div'); card.className='card fridge';
-        const name=document.createElement('div'); name.className='name'; name.textContent=f.name||f.id;
-        const temp=document.createElement('div'); temp.className='temp'; temp.textContent=(f.temp??'—')+'°C';
-        const st=document.createElement('span'); st.className='status '+(f.status||'warn'); st.textContent=f.status||'warn';
+        const name=document.createElement('div'); name.className='name'; name.textContent=f.name || f.id;
+        const temp=document.createElement('div'); temp.className='temp';
+        temp.textContent = (typeof f.temp === 'number') ? (f.temp + '°C') : '—';
+        const st=document.createElement('span'); st.className='status ' + ((f.status||'').toString().toLowerCase() || (isAlarm(f)?'bad':'ok'));
+        st.textContent = (f.status ?? (isAlarm(f)?'alarm':'ok'));
         const kv=document.createElement('div'); kv.className='kv';
-        const t = f.updatedAt?.toDate ? f.updatedAt.toDate() : null;
-        kv.textContent = 'Обновлено: ' + (t? t.toLocaleString('ru-RU') : '—');
+        const t=f.updatedAt?.toDate ? f.updatedAt.toDate() : (f.updatedAt ? new Date(f.updatedAt) : null);
+        kv.textContent='Обновлено: ' + (t ? t.toLocaleString('ru-RU') : '—');
         card.appendChild(name); card.appendChild(temp); card.appendChild(st); card.appendChild(kv);
         fridgeGrid.appendChild(card);
       });
-    }, err=>{
-      fridgeNote.textContent='Ошибка чтения холодильников';
-      alert('Firestore (fridges): '+(err.message||err.code||String(err)));
-    });
+    }
 
-    // ========== TODAY SCHEDULE ==========
+    function startFridgeListeners(){
+      FRIDGES_A.onSnapshot(snap=>{
+        a = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        console.log('[fridges] docs:', a.length);
+        renderFridges();
+      }, err=>{ console.warn('fridges error:', err); });
+
+      FRIDGES_B.onSnapshot(snap=>{
+        b = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        console.log('[frizers] docs:', b.length);
+        renderFridges();
+      }, err=>{ console.warn('frizers error:', err); });
+    }
+
+    toggleAllBtn.onclick = ()=>{
+      showAll = !showAll;
+      toggleAllBtn.textContent = showAll ? 'Показать только алармы' : 'Показать все';
+      renderFridges();
+    };
+
+    startFridgeListeners();
+
+    // ===== TODAY SCHEDULE =====
     const SCHED = db.collection('schedules').doc(SITE_ID);
     const mList=document.getElementById('mList');
     const eList=document.getElementById('eList');
@@ -151,19 +204,31 @@
     async function loadToday(){
       try{
         const snap=await SCHED.get();
-        if(!snap.exists){ todayNote.textContent='Расписание не найдено. Откройте "Конструктор графика".'; return; }
+        if(!snap.exists){ todayNote.textContent='Расписание не найдено. Откройте «Конструктор графика».';
+          mList.innerHTML='<li class="note" style="border:0">—</li>';
+          eList.innerHTML='<li class="note" style="border:0">—</li>';
+          return;
+        }
         const data=snap.data()||{};
         const weekISO = Array.isArray(data.weekISO)? data.weekISO : [];
         const employees = Array.isArray(data.employees)? data.employees : [];
-        if(weekISO.length!==7){ todayNote.textContent='Неделя не определена.'; return; }
+        if(weekISO.length!==7){ todayNote.textContent='Неделя не определена.';
+          mList.innerHTML='<li class="note" style="border:0">—</li>';
+          eList.innerHTML='<li class="note" style="border:0">—</li>';
+          return;
+        }
 
-        // определим индекс сегодняшней даты
         const todayISO = toLocalISO(new Date());
         const i = weekISO.indexOf(todayISO);
-        if(i===-1){ todayNote.textContent = `Сегодня ${todayISO} вне указанной недели.`; return; }
+        if(i===-1){
+          todayNote.textContent = `Сегодня ${todayISO} вне указанной недели.`;
+          mList.innerHTML='<li class="note" style="border:0">—</li>';
+          eList.innerHTML='<li class="note" style="border:0">—</li>';
+          return;
+        }
 
         const dayM=[], dayE=[];
-        const deptMap=new Map(); // deptName -> [{name,time}]
+        const deptMap=new Map(); // dept -> [{name,time,part}]
         employees.forEach(emp=>{
           const arr = (emp.shifts && emp.shifts['d'+i]) || [];
           arr.forEach(r=>{
@@ -180,7 +245,6 @@
         dayM.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
         dayE.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
 
-        // рендер списков
         function renderList(ul, arr){
           ul.innerHTML='';
           if(arr.length===0){ ul.innerHTML='<li class="note" style="border:0">—</li>'; return; }
@@ -210,8 +274,8 @@
             list.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
             list.forEach(p=>{
               const row=document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.margin='4px 0';
-              const side=document.createElement('div'); side.innerHTML=`${p.name}`;
-              const extra=document.createElement('div'); extra.innerHTML=`${p.part==='m'?'Утро':'Вечер'} ${p.time||''}`;
+              const side=document.createElement('div'); side.textContent = p.name;
+              const extra=document.createElement('div'); extra.textContent = `${p.part==='m'?'Утро':'Вечер'} ${p.time||''}`;
               row.appendChild(side); row.appendChild(extra); box.appendChild(row);
             });
             deptGrid.appendChild(box);
@@ -226,7 +290,7 @@
     }
     loadToday();
 
-    // вспомогательная отладка внизу
+    // ===== Отладочная строка внизу =====
     (function(){
       const pj=(firebase.app().options && firebase.app().options.projectId)||'—';
       document.getElementById('dbg').textContent = `projectId=${pj} | siteId=${SITE_ID}`;
