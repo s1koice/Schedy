@@ -2,33 +2,48 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Дашборд — Холодильники</title>
+  <title>Дашборд — мониторинг и график</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --ok:#2e7d32; --warn:#ed6c02; --bad:#c62828; --accent:#1a73e8;}
+    :root{
+      --bg:#f7f9fc; --card:#ffffff; --line:#e8eef4; --text:#1f2937; --muted:#6b7280; --accent:#1a73e8;
+      --ok:#2e7d32; --warn:#ed6c02; --bad:#c62828; --chip:#f1f5f9;
+    }
+    *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
-    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:#fff;border-bottom:1px solid var(--line)}
+    header{position:sticky;top:0;z-index:10;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(#fff,#fafcff);border-bottom:1px solid var(--line)}
     header h1{font-size:18px;margin:0}
-    header nav a{color:var(--accent);text-decoration:none;margin-left:12px}
-    .wrap{padding:16px 18px}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.05)}
-    .name{font-weight:700;margin-bottom:4px}
-    .temp{font-size:28px;margin:6px 0}
-    .meta{font-size:12px;color:var(--muted)}
-    .status{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;color:#fff}
-    .status.ok{background:var(--ok)} .status.warn{background:var(--warn)} .status.bad{background:var(--bad)}
-    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-    select,input{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+    header .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:10px;padding:8px 12px;font-size:13px;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .wrap{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+    .section{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(20,30,50,.06);padding:12px}
+    .section h2{margin:0 0 10px;font-size:16px}
     .note{color:var(--muted);font-size:12px}
-    footer{margin:16px 18px;color:#888;font-size:11px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+    .card{border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px}
+    .fridge .name{font-weight:700}
+    .status{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px}
+    .status.ok{background:var(--ok)} .status.warn{background:var(--warn)} .status.bad{background:var(--bad)}
+    .temp{font-size:28px;margin:4px 0}
+    .kv{font-size:12px;color:var(--muted)}
+    .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+    ol{list-style:none;margin:0;padding:0}
+    li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed #eef2f7}
+    li:last-child{border-bottom:0}
+    .li-left{display:flex;gap:8px}
+    .li-num{opacity:.6;min-width:2.2em}
+    .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--line);font-size:12px;color:#334155}
+    .dept-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+    .dept-card{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px}
+    footer{margin:12px 18px;color:#99a1ad;font-size:11px}
   </style>
 
   <!-- Firebase compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
-    /* Firebase Web App config (из твоего проекта) */
+    // Firebase Web App (твой проект)
     const firebaseConfig = {
       apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
       authDomain: "keen-berm-470615-h6.firebaseapp.com",
@@ -40,96 +55,182 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db=firebase.firestore();
+
+    // Идентификатор сайта по домену
     const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
   </script>
 </head>
 <body>
   <header>
-    <h1>Дашборд — Холодильники</h1>
-    <nav>
-      <a href="schedule.html">📅 Конструктор графика</a>
-    </nav>
+    <h1>Дашборд</h1>
+    <div class="actions">
+      <a class="btn" href="frizers.html">🧊 Frizers</a>
+      <a class="btn primary" href="schedule.html">📅 Конструктор графика</a>
+    </div>
   </header>
 
   <main class="wrap">
-    <div class="filters">
-      <label>Сортировка:
-        <select id="sortSel">
-          <option value="name">по имени</option>
-          <option value="temp">по температуре</option>
-          <option value="updated">по времени обновления</option>
-        </select>
-      </label>
-      <label>Фильтр:
-        <select id="statusSel">
-          <option value="all">все</option>
-          <option value="ok">ok</option>
-          <option value="warn">warn</option>
-          <option value="bad">bad</option>
-        </select>
-      </label>
-      <span class="note" id="countNote"></span>
-    </div>
 
-    <div class="grid" id="grid"></div>
+    <!-- Алармы холодильников -->
+    <section class="section" id="fridgeSection">
+      <h2>Алармы холодильников</h2>
+      <div class="note" id="fridgeNote">Загружаю…</div>
+      <div class="grid" id="fridgeGrid"></div>
+    </section>
+
+    <!-- Сегодняшний график -->
+    <section class="section" id="todaySection">
+      <h2>Сегодня по сменам</h2>
+      <div class="note" id="todayNote">Загружаю…</div>
+      <div class="two">
+        <div class="card">
+          <h3 style="margin:0 0 8px">Утро</h3>
+          <ol id="mList"></ol>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px">Вечер</h3>
+          <ol id="eList"></ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- Отделы (опционально, если есть dept в данных смен) -->
+    <section class="section" id="deptSection" style="display:none">
+      <h2>По отделам (сегодня)</h2>
+      <div class="dept-grid" id="deptGrid"></div>
+    </section>
+
   </main>
 
   <footer>
     <span id="releaseInfo">Release: 2025-08-15 00:00 (Asia/Jerusalem)</span>
+    <span id="dbg" style="margin-left:10px"></span>
   </footer>
 
   <script>
-    /* ===== Firestore: слушаем коллекцию `sites/<siteId>/fridges` или просто `fridges` =====
-       Выбери ВАРИАНТ A или B ниже и оставь один:
-       A) Глобальная коллекция fridges (проще):
-           db.collection('fridges')
-       B) Вложенная для конкретного сайта:
-           db.collection('sites').doc(SITE_ID).collection('fridges')
-    */
-    const FRIDGES = db.collection('sites').doc(SITE_ID).collection('fridges'); // Вариант B
+    // ========== Утилиты ==========
+    function bucketByPart(r){ if(r.start<11) return 'm'; if(r.end>17 || r.start>=12) return 'e'; return null; }
+    function toLocalISO(date){ const d=new Date(date.getTime()-date.getTimezoneOffset()*60000); return d.toISOString().slice(0,10); }
 
-    const gridEl=document.getElementById('grid');
-    const sortSel=document.getElementById('sortSel');
-    const statusSel=document.getElementById('statusSel');
-    const countNote=document.getElementById('countNote');
+    // ========== FRIDGES (live) ==========
+    const FRIDGES = db.collection('sites').doc(SITE_ID).collection('fridges');
+    const fridgeGrid=document.getElementById('fridgeGrid');
+    const fridgeNote=document.getElementById('fridgeNote');
 
-    let fridges=[]; // {id,name,temp,status,updatedAt}
-
-    function render(){
-      let list=[...fridges];
-      const sf=statusSel.value;
-      if(sf!=='all') list=list.filter(x=>x.status===sf);
-
-      const s=sortSel.value;
-      if(s==='name') list.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-      if(s==='temp') list.sort((a,b)=>(a.temp??0)-(b.temp??0));
-      if(s==='updated') list.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
-
-      countNote.textContent=`показано ${list.length} из ${fridges.length}`;
-
-      gridEl.innerHTML='';
-      list.forEach(doc=>{
-        const card=document.createElement('div'); card.className='card';
-        const name=document.createElement('div'); name.className='name'; name.textContent=doc.name||doc.id;
-        const temp=document.createElement('div'); temp.className='temp'; temp.textContent=(doc.temp??'—')+'°C';
-        const st=document.createElement('span'); st.className='status '+(doc.status||'ok'); st.textContent=doc.status||'ok';
-        const meta=document.createElement('div'); meta.className='meta';
-        const t = doc.updatedAt?.toDate ? doc.updatedAt.toDate() : null;
-        meta.textContent='Обновлено: '+(t? t.toLocaleString('ru-RU') : '—');
-        card.appendChild(name); card.appendChild(temp); card.appendChild(st); card.appendChild(meta);
-        gridEl.appendChild(card);
-      });
-    }
-
-    sortSel.onchange=render; statusSel.onchange=render;
-
-    // Live updates
     FRIDGES.onSnapshot(snap=>{
-      fridges = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-      render();
+      const all = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      const alarms = all.filter(x => (x.status||'ok') !== 'ok');
+      fridgeGrid.innerHTML='';
+      if(alarms.length===0){
+        fridgeNote.textContent='Алармов нет. Все холодильники в норме.';
+        return;
+      }
+      fridgeNote.textContent = `В аларме: ${alarms.length}`;
+      alarms.forEach(f=>{
+        const card=document.createElement('div'); card.className='card fridge';
+        const name=document.createElement('div'); name.className='name'; name.textContent=f.name||f.id;
+        const temp=document.createElement('div'); temp.className='temp'; temp.textContent=(f.temp??'—')+'°C';
+        const st=document.createElement('span'); st.className='status '+(f.status||'warn'); st.textContent=f.status||'warn';
+        const kv=document.createElement('div'); kv.className='kv';
+        const t = f.updatedAt?.toDate ? f.updatedAt.toDate() : null;
+        kv.textContent = 'Обновлено: ' + (t? t.toLocaleString('ru-RU') : '—');
+        card.appendChild(name); card.appendChild(temp); card.appendChild(st); card.appendChild(kv);
+        fridgeGrid.appendChild(card);
+      });
     }, err=>{
-      alert('Ошибка чтения Firestore (fridges):\n'+(err.message||err.code||String(err)));
+      fridgeNote.textContent='Ошибка чтения холодильников';
+      alert('Firestore (fridges): '+(err.message||err.code||String(err)));
     });
+
+    // ========== TODAY SCHEDULE ==========
+    const SCHED = db.collection('schedules').doc(SITE_ID);
+    const mList=document.getElementById('mList');
+    const eList=document.getElementById('eList');
+    const todayNote=document.getElementById('todayNote');
+
+    async function loadToday(){
+      try{
+        const snap=await SCHED.get();
+        if(!snap.exists){ todayNote.textContent='Расписание не найдено. Откройте "Конструктор графика".'; return; }
+        const data=snap.data()||{};
+        const weekISO = Array.isArray(data.weekISO)? data.weekISO : [];
+        const employees = Array.isArray(data.employees)? data.employees : [];
+        if(weekISO.length!==7){ todayNote.textContent='Неделя не определена.'; return; }
+
+        // определим индекс сегодняшней даты
+        const todayISO = toLocalISO(new Date());
+        const i = weekISO.indexOf(todayISO);
+        if(i===-1){ todayNote.textContent = `Сегодня ${todayISO} вне указанной недели.`; return; }
+
+        const dayM=[], dayE=[];
+        const deptMap=new Map(); // deptName -> [{name,time}]
+        employees.forEach(emp=>{
+          const arr = (emp.shifts && emp.shifts['d'+i]) || [];
+          arr.forEach(r=>{
+            const part=bucketByPart(r);
+            if(part==='m') dayM.push({name:emp.name,time:r.text,dept:r.dept});
+            if(part==='e') dayE.push({name:emp.name,time:r.text,dept:r.dept});
+            if(r.dept){
+              const list = deptMap.get(r.dept) || [];
+              list.push({name:emp.name,time:r.text,part});
+              deptMap.set(r.dept, list);
+            }
+          });
+        });
+        dayM.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+        dayE.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+
+        // рендер списков
+        function renderList(ul, arr){
+          ul.innerHTML='';
+          if(arr.length===0){ ul.innerHTML='<li class="note" style="border:0">—</li>'; return; }
+          arr.forEach((p,idx)=>{
+            const li=document.createElement('li');
+            const left=document.createElement('div'); left.className='li-left';
+            left.innerHTML = `<span class="li-num">${idx+1}.</span> <span>${p.name}</span>`;
+            const right=document.createElement('div'); right.textContent=p.time? p.time : '';
+            li.appendChild(left); li.appendChild(right); ul.appendChild(li);
+          });
+        }
+        renderList(mList, dayM);
+        renderList(eList, dayE);
+        todayNote.textContent = `Дата: ${new Date(weekISO[i]).toLocaleDateString('ru-RU')}  •  Утро: ${dayM.length}  •  Вечер: ${dayE.length}`;
+
+        // отделы
+        const deptSection=document.getElementById('deptSection');
+        const deptGrid=document.getElementById('deptGrid');
+        deptGrid.innerHTML='';
+        if(deptMap.size){
+          deptSection.style.display='';
+          for(const [dept, list] of deptMap){
+            const box=document.createElement('div'); box.className='dept-card';
+            const h=document.createElement('div'); h.style.display='flex'; h.style.justifyContent='space-between';
+            h.innerHTML=`<strong>${dept}</strong> <span class="chip">${list.length}</span>`;
+            box.appendChild(h);
+            list.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
+            list.forEach(p=>{
+              const row=document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.margin='4px 0';
+              const side=document.createElement('div'); side.innerHTML=`${p.name}`;
+              const extra=document.createElement('div'); extra.innerHTML=`${p.part==='m'?'Утро':'Вечер'} ${p.time||''}`;
+              row.appendChild(side); row.appendChild(extra); box.appendChild(row);
+            });
+            deptGrid.appendChild(box);
+          }
+        } else {
+          deptSection.style.display='none';
+        }
+      }catch(err){
+        todayNote.textContent='Ошибка чтения расписания';
+        alert('Firestore (schedule): '+(err.message||err.code||String(err)));
+      }
+    }
+    loadToday();
+
+    // вспомогательная отладка внизу
+    (function(){
+      const pj=(firebase.app().options && firebase.app().options.projectId)||'—';
+      document.getElementById('dbg').textContent = `projectId=${pj} | siteId=${SITE_ID}`;
+    })();
   </script>
 </body>
 </html>
