@@ -1,206 +1,135 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
+  <title>Дашборд — Холодильники</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>טמפרטורה במקררים</title>
   <style>
-    :root { --ok:#16a34a; --bad:#ef4444; --warn:#b45309; --muted:#64748b; --card:#ffffff; --shadow: rgba(17,24,39,.12); }
-    * { box-sizing: border-box; }
-    body { margin:0; background:#f5f7fb; color:#0f172a; font-family: system-ui,-apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-    .wrap { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
-
-    header { display:flex; gap:12px; align-items:center; justify-content:space-between; margin: 0 0 14px; }
-    h2 { margin:0; font-size: 22px; letter-spacing:.2px; }
-    .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .chip { font-size:12px; padding:6px 10px; border-radius:999px; background:#ffffff; color:#334155; border:1px solid #e2e8f0; }
-    .btn { cursor:pointer; user-select:none; font-size:12px; padding:6px 12px; border-radius:10px; border:1px solid #d1d5db; background:#fff; color:#111827; box-shadow: 0 1px 2px rgba(0,0,0,.05);} 
-    .btn[aria-pressed="true"]{ background:#111827; color:#fff; border-color:#111827; }
-
-    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap:14px; }
-    .card { background:var(--card); border:1px solid #e5e7eb; border-radius:14px; padding:14px; box-shadow: 0 6px 18px var(--shadow); display:flex; flex-direction:column; gap:10px; }
-    .card.ok { border-inline-start: 4px solid var(--ok); }
-    .card.alarm { border-inline-start: 4px solid var(--bad); }
-    .card.sensor, .card.rising, .card.spike { border-inline-start: 4px solid var(--warn); }
-
-    .top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    /* в RTL имя справа, номер слева — просто ставим имя первым */
-    .name { font-weight:700; font-size:16px; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .id { background:#f1f5f9; border:1px solid #e2e8f0; color:#0f172a; padding:4px 8px; border-radius:10px; font-weight:700; min-width:48px; text-align:center; }
-
-    .badges { display:inline-flex; gap:6px; align-items:center; }
-
-    .temp { font-size:34px; font-weight:800; line-height:1; }
-    .num { direction:ltr; unicode-bidi:isolate; font-variant-numeric: tabular-nums; }
-
-    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13px; }
-    .status { display:inline-flex; align-items:center; gap:6px; font-weight:800; }
-    .status.ok { color: var(--ok); }
-    .status.alarm { color: var(--bad); }
-    .status.rising, .status.spike, .status.sensor { color: var(--warn); }
-    .muted { color: var(--muted); }
-
-    footer { text-align:center; color:#64748b; font-size:12px; margin:16px 0 24px; }
+    :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --line:#e6e6e6; --ok:#2e7d32; --warn:#ed6c02; --bad:#c62828; --accent:#1a73e8;}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
+    header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:#fff;border-bottom:1px solid var(--line)}
+    header h1{font-size:18px;margin:0}
+    header nav a{color:var(--accent);text-decoration:none;margin-left:12px}
+    .wrap{padding:16px 18px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+    .name{font-weight:700;margin-bottom:4px}
+    .temp{font-size:28px;margin:6px 0}
+    .meta{font-size:12px;color:var(--muted)}
+    .status{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;color:#fff}
+    .status.ok{background:var(--ok)} .status.warn{background:var(--warn)} .status.bad{background:var(--bad)}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+    select,input{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+    .note{color:var(--muted);font-size:12px}
+    footer{margin:16px 18px;color:#888;font-size:11px}
   </style>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    /* Firebase Web App config (из твоего проекта) */
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
+      authDomain: "keen-berm-470615-h6.firebaseapp.com",
+      projectId: "keen-berm-470615-h6",
+      storageBucket: "keen-berm-470615-h6.firebasestorage.app",
+      messagingSenderId: "772648903570",
+      appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
+      measurementId: "G-7VGNRGC0G7"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db=firebase.firestore();
+    const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
+  </script>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h2>טמפרטורה במקררים</h2>
-      <div class="actions">
-        <button id="toggleIssues" class="btn" aria-pressed="false">בעיות בלבד</button>
-        <span id="lastUpdate" class="chip">—</span>
-      </div>
-    </header>
+  <header>
+    <h1>Дашборд — Холодильники</h1>
+    <nav>
+      <a href="schedule.html">📅 Конструктор графика</a>
+    </nav>
+  </header>
 
-    <div id="cards" class="grid" aria-live="polite"></div>
+  <main class="wrap">
+    <div class="filters">
+      <label>Сортировка:
+        <select id="sortSel">
+          <option value="name">по имени</option>
+          <option value="temp">по температуре</option>
+          <option value="updated">по времени обновления</option>
+        </select>
+      </label>
+      <label>Фильтр:
+        <select id="statusSel">
+          <option value="all">все</option>
+          <option value="ok">ok</option>
+          <option value="warn">warn</option>
+          <option value="bad">bad</option>
+        </select>
+      </label>
+      <span class="note" id="countNote"></span>
+    </div>
 
-    <footer id="release"></footer>
-  </div>
+    <div class="grid" id="grid"></div>
+  </main>
 
-  <script type="module">
-    // ===== CONFIG =====
-    const DATA_URL = "https://fridge-proxy-vercel.vercel.app/api/status"; // твой прокси
-    const POLL_MS = 60_000;
-    const HISTORY_MINUTES = 48 * 60;
-    const ALARM_FRIDGE = 9;       // холодильник
-    const ALARM_FREEZER = -1;     // морозильник
-    const ALARM_WINDOW_MIN = 30;  // красный аларм
-    const IGNORE_SPIKES_MIN = 5;  // спайк до 5 минут
-    const LS_KEY = "fridge_history_v4_cards";
+  <footer>
+    <span id="releaseInfo">Release: 2025-08-15 00:00 (Asia/Jerusalem)</span>
+  </footer>
 
-    let showOnlyIssues = false;
+  <script>
+    /* ===== Firestore: слушаем коллекцию `sites/<siteId>/fridges` или просто `fridges` =====
+       Выбери ВАРИАНТ A или B ниже и оставь один:
+       A) Глобальная коллекция fridges (проще):
+           db.collection('fridges')
+       B) Вложенная для конкретного сайта:
+           db.collection('sites').doc(SITE_ID).collection('fridges')
+    */
+    const FRIDGES = db.collection('sites').doc(SITE_ID).collection('fridges'); // Вариант B
 
-    // карточки со снежинкой
-    const FROST_IDS = new Set(["1","2","8","10","15","16","18"]);
+    const gridEl=document.getElementById('grid');
+    const sortSel=document.getElementById('sortSel');
+    const statusSel=document.getElementById('statusSel');
+    const countNote=document.getElementById('countNote');
 
-    // Переименования (по точному имени, лишние пробелы срезаем)
-    const RENAME_BY_NAME = new Map([
-      ["מקרר מעדנים", "מקפיא"],
-      ["מקרר חלב", "מקרר ביצים"],
-      ["מקרר ביצים", "מקרר"],
-      ["מקפיא בצקים", "מקפיא לחם"],
-      ["מקפיא לחם", "דגים מקפיא"],
-    ]);
+    let fridges=[]; // {id,name,temp,status,updatedAt}
 
-    const isFreezer = (name) => /מקפ|freez/i.test(name || "");
-    const loadHistory = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } };
-    const saveHistory = (h) => localStorage.setItem(LS_KEY, JSON.stringify(h));
+    function render(){
+      let list=[...fridges];
+      const sf=statusSel.value;
+      if(sf!=='all') list=list.filter(x=>x.status===sf);
 
-    function trimHistory(h){
-      const cutoff = Date.now() - HISTORY_MINUTES*60_000;
-      for (const k of Object.keys(h)){
-        h[k] = (h[k]||[]).filter(e=>e.t>=cutoff);
-        if(!h[k].length) delete h[k];
-      }
-      return h;
-    }
+      const s=sortSel.value;
+      if(s==='name') list.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+      if(s==='temp') list.sort((a,b)=>(a.temp??0)-(b.temp??0));
+      if(s==='updated') list.sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
 
-    function upsertReading(h, id, value){
-      const t=Date.now(); if(!h[id]) h[id]=[]; h[id].push({v:value,t});
-      const a=h[id]; if(a.length>=2 && Math.abs(a[a.length-1].t-a[a.length-2].t)<50_000){ a.splice(a.length-2,1); }
-    }
+      countNote.textContent=`показано ${list.length} из ${fridges.length}`;
 
-    function sustainedAlarmMinutes(series, thr){
-      let m=0; for(let i=series.length-1;i>=0;i--){ const {v,t}=series[i]; if(v==null||isNaN(v)) return Infinity; if(v>thr){ const pt=i>0?series[i-1].t:t; m+=Math.max(1,Math.round((t-pt)/60_000)); } else break; } return m;
-    }
-
-    function renameName(original){
-      const key = (original||"").trim();
-      return RENAME_BY_NAME.get(key) || original;
-    }
-
-    function parseXMLToRecords(xmlText){
-      const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
-      if (xml.documentElement.nodeName === 'parsererror') throw new Error('Неверный XML');
-      const map = {}; xml.querySelectorAll('u').forEach(n=>{ const attr=n.getAttribute('i')||''; if(!attr.startsWith('list_')) return; const idx=parseInt(attr.slice(5),10); if(Number.isFinite(idx)) map[idx]=(n.textContent||'').trim(); });
-      const keys = Object.keys(map).map(Number).sort((a,b)=>a-b); const out=[];
-      for (const base of keys){ if(base%6!==0) continue; const idRaw=map[base], nameRaw=map[base+1], tempRaw=map[base+2]; if(!idRaw||!nameRaw) continue; const idNum=parseInt(String(idRaw),10); if(!(idNum>=1&&idNum<=19)) continue; const tnum=Number(String(tempRaw??'').replace(',','.')); const name = renameName(nameRaw); out.push({ id:String(idRaw).trim(), name, temp:isFinite(tnum)?tnum:null }); }
-      return out;
-    }
-
-    function statusOf(r, minutes){
-      if (r.temp == null || !isFinite(r.temp)) return { cls:'sensor', label:'Sensor ⚠️' };
-      if (minutes >= ALARM_WINDOW_MIN) return { cls:'alarm', label:'Alarm 🔴' };
-      if (minutes > 0 && minutes < IGNORE_SPIKES_MIN) return { cls:'spike', label:'Spike ⏳ (<5m)' };
-      if (minutes >= IGNORE_SPIKES_MIN && minutes < ALARM_WINDOW_MIN) return { cls:'rising', label:'Rising ⏱ (≥5m)' };
-      return { cls:'ok', label:'Normal ✅' };
-    }
-
-    function cardHTML(r, minutes, st){
-      const temp = (r.temp==null||!isFinite(r.temp)) ? '—' : `${r.temp.toFixed(1)}°C`;
-      const snow = FROST_IDS.has(String(r.id)) ? '<span title="Freezer" aria-hidden="true">❄️</span>' : '';
-      return `
-        <div class="card ${st.cls}">
-          <div class="top">
-            <div class="name" title="${r.name}">${r.name} <span class="badges">${snow}</span></div>
-            <div class="id num">${r.id}</div>
-          </div>
-          <div class="temp num">${temp}</div>
-          <div class="row">
-            <span class="status ${st.cls}">${st.label}</span>
-            <span class="muted">דקות ↑: <span class="num">${Number.isFinite(minutes)?minutes:'∞'}</span></span>
-          </div>
-        </div>`;
-    }
-
-    function render(rows, hist){
-      const grid = document.getElementById('cards'); grid.innerHTML='';
-      const frag = document.createDocumentFragment();
-
-      // сортируем: сначала Alarm, потом Rising, Spike, Sensor, затем OK
-      const order = { alarm:0, rising:1, spike:2, sensor:3, ok:4 };
-
-      const cards = rows.map(r=>{
-        const thr = isFreezer(r.name) ? ALARM_FREEZER : ALARM_FRIDGE;
-        const minutes = sustainedAlarmMinutes(hist[r.id]||[], thr);
-        const st = statusOf(r, minutes);
-        return { r, minutes, st };
-      })
-      .filter(x => !showOnlyIssues || x.st.cls !== 'ok')
-      .sort((a,b)=> order[a.st.cls]-order[b.st.cls]);
-
-      cards.forEach(x=>{
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = cardHTML(x.r, x.minutes, x.st);
-        frag.appendChild(wrapper.firstElementChild);
+      gridEl.innerHTML='';
+      list.forEach(doc=>{
+        const card=document.createElement('div'); card.className='card';
+        const name=document.createElement('div'); name.className='name'; name.textContent=doc.name||doc.id;
+        const temp=document.createElement('div'); temp.className='temp'; temp.textContent=(doc.temp??'—')+'°C';
+        const st=document.createElement('span'); st.className='status '+(doc.status||'ok'); st.textContent=doc.status||'ok';
+        const meta=document.createElement('div'); meta.className='meta';
+        const t = doc.updatedAt?.toDate ? doc.updatedAt.toDate() : null;
+        meta.textContent='Обновлено: '+(t? t.toLocaleString('ru-RU') : '—');
+        card.appendChild(name); card.appendChild(temp); card.appendChild(st); card.appendChild(meta);
+        gridEl.appendChild(card);
       });
-
-      grid.appendChild(frag);
     }
 
-    async function tick(){
-      const lastEl = document.getElementById('lastUpdate');
-      const hist = trimHistory(loadHistory());
-      try {
-        const resp = await fetch(DATA_URL, { cache:'no-store' });
-        if (!resp.ok) throw new Error('HTTP '+resp.status);
-        const xml = await resp.text();
-        const rows = parseXMLToRecords(xml);
-        rows.forEach(r=>upsertReading(hist, r.id, r.temp));
-        saveHistory(hist);
-        render(rows, hist);
-        lastEl.textContent = 'Обновлено: ' + new Date().toLocaleString();
-      } catch(e){
-        document.getElementById('cards').innerHTML = `<div class="card sensor">Ошибка обновления: ${e.message}</div>`;
-        lastEl.textContent = 'Ошибка';
-        console.error(e);
-      }
-    }
+    sortSel.onchange=render; statusSel.onchange=render;
 
-    // toggle button
-    const toggleBtn = document.getElementById('toggleIssues');
-    toggleBtn.addEventListener('click', ()=>{
-      showOnlyIssues = !showOnlyIssues;
-      toggleBtn.setAttribute('aria-pressed', String(showOnlyIssues));
-      toggleBtn.textContent = showOnlyIssues ? 'הצג הכל' : 'בעיות בלבד';
-      // перерисуем из последнего снапшота
-      tick();
+    // Live updates
+    FRIDGES.onSnapshot(snap=>{
+      fridges = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      render();
+    }, err=>{
+      alert('Ошибка чтения Firestore (fridges):\n'+(err.message||err.code||String(err)));
     });
-
-    tick();
-    setInterval(tick, POLL_MS);
-    document.getElementById('release').textContent = 'Last release: 2025-09-12';
   </script>
 </body>
 </html>
