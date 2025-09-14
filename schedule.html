@@ -51,6 +51,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
+    /* === твой Firebase Web App конфиг === */
     const firebaseConfig = {
       apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
       authDomain: "keen-berm-470615-h6.firebaseapp.com",
@@ -81,20 +82,40 @@
 
 <main class="wrap">
 
-  <!-- загрузка -->
+  <!-- загрузка + настройки -->
   <section class="card">
-    <div class="row">
-      <label class="filelabel" for="pdfInput">Загрузить PDF</label>
-      <input id="pdfInput" type="file" accept=".pdf,application/pdf" />
-      <span class="chip" id="status">…</span>
-      <label class="row" style="gap:6px">
-        yTolerance: <input id="tol" type="number" step="0.5" value="3.5" style="width:80px">
-      </label>
-      <button class="btn" id="toggleDebug">Debug</button>
+    <div class="row" style="justify-content:space-between;gap:12px">
+      <div class="row">
+        <label class="filelabel" for="pdfInput">Загрузить PDF</label>
+        <input id="pdfInput" type="file" accept=".pdf,application/pdf" />
+        <span class="chip" id="status">…</span>
+        <button class="btn" id="toggleDebug">Debug</button>
+      </div>
+      <div class="row" style="gap:14px">
+        <label class="row" style="gap:6px">
+          yTolerance: <input id="tol" type="number" step="0.5" value="3.5" style="width:80px">
+        </label>
+        <label class="row" style="gap:6px">
+          <input id="fixLoose" type="checkbox"> Разрывы “9 21” → “9-21”
+        </label>
+        <label class="row" style="gap:6px">
+          <input id="numToTime" type="checkbox"> Числа “700/450” → время
+        </label>
+        <label class="row" style="gap:6px">
+          Делить одно значения по колонкам: 
+          <select id="colMode">
+            <option value="auto">Авто</option>
+            <option value="morning-evening">Утро → Вечер</option>
+            <option value="morning-only">Только утро</option>
+            <option value="evening-only">Только вечер</option>
+          </select>
+        </label>
+      </div>
     </div>
     <div class="note">
-      Экспортируй расписание из Google Docs в PDF и загрузи. Строки собираются по координате Y (настройка yTolerance).  
-      Поддерживаются OFF, P, «9-21», «9-12,17-22», «930-22», «9-21:30», «9:00-9:30». Лишние слова между днями игнорируются.
+      Экспортируй расписание из Google Docs в PDF и загрузи.  
+      Поддерживаются OFF, P, «9-21», «9-12,17-22», «930-22», «9-21:30», «9:00-9:30».  
+      Если в PDF пропали дефисы/превратились в числа — включи флажки выше.
     </div>
     <div id="debug"></div>
   </section>
@@ -134,17 +155,17 @@
 </main>
 
 <footer>
-  <span id="releaseInfo">Release: 2025-09-15 09:40 (Asia/Jerusalem)</span>
+  <span id="releaseInfo">Release: 2025-09-15 12:10 (Asia/Jerusalem)</span>
   <span id="dbg" style="margin-inline-start:10px"></span>
 </footer>
 
 <script>
 /* ======= Модель ======= */
 let weekISO=[];           // ['YYYY-MM-DD' x7]
-let employees=[];         // [{name,backend,shifts:{d0:[{start,end,text}],…}}]
+let employees=[];         // [{name,backend,shifts:{d0:[{start,end,text,dept?}],…}}]
 const DOW_HE=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-/* ======= PDF → текст ======= */
+/* ======= PDF → текст (по координатам) ======= */
 async function extractTextFromPdf(file, yTolerance=3.5) {
   const statusEl=document.getElementById('status');
   const buf = await file.arrayBuffer();
@@ -158,7 +179,6 @@ async function extractTextFromPdf(file, yTolerance=3.5) {
       x: it.transform[4],
       y: it.transform[5]
     }));
-    // сверху вниз, затем слева направо
     items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
     const lines = [];
     let cur = [];
@@ -198,35 +218,74 @@ function buildWeekISO(seg){
   if(y<100) y = 2000 + y;
   return seg.map(t=>toISO(y,t.m,t.d));
 }
+
+// === Расширённое распознавание смен ===
+function normHM(x){
+  const s = String(x).trim();
+  if (s.includes(':')) return s;
+  if (/^\d{3}$/.test(s)) return `${s[0]}:${s.slice(1)}`;         // 930 → 9:30
+  if (/^\d{4}$/.test(s)) return `${s.slice(0,2)}:${s.slice(2)}`; // 0930 → 09:30
+  if (/^\d{1,2}$/.test(s)) return `${s}:00`;                    // 9 → 9:00
+  return s;
+}
 function isShiftToken(str){
   if(!str) return false;
-  const s=str.trim();
+  const s = String(str).trim();
   if(/^off$/i.test(s) || /^p$/i.test(s)) return true;
-  return /^(\d{1,2}(?::?\d{2})?)-(\d{1,2}(?::?\d{2})?)$/.test(s); // 9-21 | 930-22 | 9:00-9:30
-}
-function normHM(x){
-  if(x.includes(':')) return x;
-  if(x.length===3) return `${x[0]}:${x.slice(1)}`;
-  if(x.length===4) return `${x.slice(0,2)}:${x.slice(2)}`;
-  return x;
+
+  let t = s.replace(/[–—−‒]/g,'-'); // все тире → дефис
+  const loose = document.getElementById('fixLoose')?.checked;
+  if (loose && /^\d{1,2}\s+\d{1,2}(:?\d{2})?$/.test(t)) {
+    t = t.replace(/\s+/, '-'); // 9 21 → 9-21
+  }
+  if (/^(\d{1,2}(?::?\d{2})?)\s*-\s*(\d{1,2}(?::?\d{2})?)$/.test(t)) return true;
+
+  const n2t = document.getElementById('numToTime')?.checked;
+  if (n2t && /^\d{2,4}$/.test(t)) return true; // одиночное число как время
+  return false;
 }
 function parseOneRange(s){
-  const m=(s||'').trim().match(/^(\d{1,2}(?::?\d{2})?)-(\d{1,2}(?::?\d{2})?)$/);
+  let t = String(s).trim().replace(/[–—−‒]/g,'-');
+  const loose = document.getElementById('fixLoose')?.checked;
+  if (loose && /^\d{1,2}\s+\d{1,2}(:?\d{2})?$/.test(t)) t = t.replace(/\s+/, '-');
+
+  const n2t = document.getElementById('numToTime')?.checked;
+  if (!t.includes('-') && n2t && /^\d{2,4}$/.test(t)) {
+    const hhmm = normHM(t);
+    const [h, m='00'] = hhmm.split(':');
+    const startH = +h + (+m)/60;
+    const endH   = Math.min(startH + 4, 23.99); // эвристика: слот до 4х часов
+    const endTxt = `${Math.floor(endH)}:${String(Math.round((endH%1)*60)).padStart(2,'0')}`;
+    t = `${hhmm}-${endTxt}`;
+  }
+
+  const m=t.match(/^(\d{1,2}(?::?\d{2})?)\s*-\s*(\d{1,2}(?::?\d{2})?)$/);
   if(!m) return null;
   const a=normHM(m[1]), b=normHM(m[2]);
-  const [h1,mi1='0']=a.split(':'); const [h2,mi2='0']=b.split(':');
+  const [h1,mi1='0'] = a.split(':'); const [h2,mi2='0']=b.split(':');
   const sh=+h1 + (+mi1)/60, eh=+h2 + (+mi2)/60;
   const txt=`${+h1}${(+mi1?':'+String(+mi1).padStart(2,'0'):'')}-${+h2}${(+mi2?':'+String(+mi2).padStart(2,'0'):'')}`;
   return {start:sh,end:eh,text:txt};
 }
-function splitRanges(cell){ return (cell||'').split(/[,\s]+/).map(parseOneRange).filter(Boolean); }
+function splitRanges(cell){
+  if(!cell) return [];
+  let s = String(cell).trim();
+  const loose = document.getElementById('fixLoose')?.checked;
+  if (loose && /^\d{1,2}(?:\s+\d{1,2}){1,}$/.test(s)) {
+    const nums = s.split(/\s+/).map(x=>x.trim()).filter(Boolean);
+    const pairs=[]; for(let i=0;i+1<nums.length;i+=2){ pairs.push(`${nums[i]}-${nums[i+1]}`); }
+    s = pairs.join(',');
+  }
+  return s.split(/[,\s]+/).map(parseOneRange).filter(Boolean);
+}
+
+const DEPT_WORDS=/חלבי|חם|סלט|לובי|קונד|קצב|ירקות|בר|מסעד/i;
+function maybeDept(s){ const m=(s||'').match(DEPT_WORDS); return m? m[0] : null; }
 function looksLikeName(s){
   if(!s) return false;
   if(/\d+-\d+/.test(s)) return false;
   return /[\p{L}]{2,}/u.test(s);
 }
-const DEPT_WORDS=/חלבי|חם|סלט|לובי|קונד|קצב|ירקות|בר|מסעד/i;
-function maybeDept(s){ const m=(s||'').match(DEPT_WORDS); return m? m[0] : null; }
 
 function parseFromRaw(raw){
   const weekSeg = findWeekTokens(raw);
@@ -243,10 +302,16 @@ function parseFromRaw(raw){
 
     const vals=[]; const notes=[];
     let j=i+1;
-    while(j<lines.length && vals.length<7){
-      const t=lines[j].trim();
-      if(isShiftToken(t)) vals.push(t);
-      else {
+    while (j < lines.length && vals.length < 7) {
+      let t = lines[j].trim();
+
+      // если строка содержит несколько кандидатных токенов — разбиваем
+      const parts = t.split(/\s{2,}|\t|,\s*/).filter(Boolean);
+      if (parts.length > 1 && parts.some(isShiftToken)) {
+        for (const p of parts) if (isShiftToken(p) && vals.length<7) vals.push(p);
+      } else if (isShiftToken(t)) {
+        vals.push(t);
+      } else {
         const dep=maybeDept(t); if(dep) notes.push(dep);
       }
       j++;
@@ -257,6 +322,8 @@ function parseFromRaw(raw){
     }
   }
 
+  // Собираем employees
+  const mode = (document.getElementById('colMode')?.value)||'auto';
   employees = rows.map(r=>{
     const shifts={};
     for(let d=0; d<7; d++){
@@ -264,7 +331,11 @@ function parseFromRaw(raw){
       if(/^off$/i.test(cell)){ shifts['d'+d]=[]; continue; }
       if(/^p$/i.test(cell)){ shifts['d'+d]=[{start:9,end:12,text:'9-12'},{start:18,end:22,text:'18-22'}]; continue; }
       const arr = splitRanges(cell).map(o => (r.dept? {...o, dept:r.dept} : o));
-      shifts['d'+d]=arr;
+
+      // лёгкая эвристика распределения по утро/вечер в fallback-случаях
+      if(mode==='morning-only'){ shifts['d'+d] = arr.map(o=>({...o,start:Math.min(o.start,10)})); }
+      else if(mode==='evening-only'){ shifts['d'+d] = arr.map(o=>({...o,start:Math.max(o.start,12)})); }
+      else { shifts['d'+d]=arr; }
     }
     return {name:r.name, backend:false, shifts};
   });
@@ -398,8 +469,8 @@ document.getElementById('pdfInput').onchange = async (e)=>{
   }catch(err){
     console.error(err);
     statusEl.textContent='Error';
-    document.getElementById('debug').style.display='block';
-    document.getElementById('debug').textContent = 'Ошибка: '+(err.message||err);
+    dbg.style.display='block';
+    dbg.textContent = 'Ошибка: '+(err.message||err);
     alert('Ошибка чтения/парсинга PDF: '+(err.message||err));
   }
 };
