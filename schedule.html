@@ -1,74 +1,83 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="ru" dir="rtl">
 <head>
-<meta charset="utf-8" />
-<title>קונסטרוקטור סידור — גרסה חדשה</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  :root{
-    --bg:#f7f9fc; --card:#ffffff; --line:#e8eef4; --text:#1f2937; --muted:#6b7280; --accent:#1a73e8;
-    --chip:#f1f5f9; --warn:#ed6c02; --ok:#2e7d32; --bad:#c62828;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
-  header{position:sticky;top:0;z-index:10;display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(#fff,#fafcff);border-bottom:1px solid var(--line)}
-  header h1{margin:0;font-size:18px}
-  .nav{display:flex;gap:8px;flex-wrap:wrap}
-  .btn{border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:10px;padding:8px 12px;font-size:13px;text-decoration:none;display:inline-flex;gap:8px;align-items:center;cursor:pointer}
-  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .wrap{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
-  .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(20,30,50,.06);padding:12px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .filelabel{display:inline-flex;align-items:center;gap:10px;border:1px dashed var(--line);padding:10px 14px;border-radius:12px;background:#fff;cursor:pointer}
-  input[type="file"]{display:none}
-  .note{font-size:12px;color:var(--muted)}
-  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
-  .day{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
-  .day h4{margin:0 0 6px;font-size:14px}
-  table{width:100%;border-collapse:collapse}
-  th,td{border-bottom:1px solid var(--line);padding:6px 4px;font-size:13px;vertical-align:top}
-  th{text-align:right;color:#374151}
-  input[type="text"]{border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:13px;width:100%}
-  .grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-  .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--line);font-size:12px;color:#334155}
-  footer{margin:12px 18px;color:#99a1ad;font-size:11px}
-</style>
+  <meta charset="utf-8" />
+  <title>Конструктор графика — PDF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg:#f7f9fc; --card:#ffffff; --line:#e8eef4; --text:#1f2937; --muted:#6b7280; --accent:#1a73e8;
+      --chip:#f1f5f9; --warn:#ed6c02; --ok:#2e7d32; --bad:#c62828;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Arial,Helvetica,sans-serif}
+    header{position:sticky;top:0;z-index:10;display:flex;gap:12px;align-items:center;
+      justify-content:space-between;padding:14px 18px;background:linear-gradient(#fff,#fafcff);
+      border-bottom:1px solid var(--line)}
+    header h1{margin:0;font-size:18px}
+    .nav{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:1px solid var(--line);background:#fff;color:var(--accent);border-radius:10px;
+      padding:8px 12px;font-size:13px;text-decoration:none;display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+    .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .wrap{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(20,30,50,.06);padding:12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .filelabel{display:inline-flex;align-items:center;gap:10px;border:1px dashed var(--line);padding:10px 14px;border-radius:12px;background:#fff;cursor:pointer}
+    input[type="file"]{display:none}
+    .note{font-size:12px;color:var(--muted)}
+    .week{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+    .day{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+    .day h4{margin:0 0 6px;font-size:14px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:6px 4px;font-size:13px;vertical-align:top}
+    th{text-align:right;color:#374151}
+    input[type="text"]{border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:13px;width:100%}
+    .grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--line);font-size:12px;color:#334155}
+    footer{margin:12px 18px;color:#99a1ad;font-size:11px}
+  </style>
 
-<!-- Mammoth (DOCX) -->
-<script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  </script>
 
-<!-- Firebase compat -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>
-  /* ===== Firebase — твой конфиг ===== */
-  const firebaseConfig = {
-    apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
-    authDomain: "keen-berm-470615-h6.firebaseapp.com",
-    projectId: "keen-berm-470615-h6",
-    storageBucket: "keen-berm-470615-h6.firebasestorage.app",
-    messagingSenderId: "772648903570",
-    appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
-    measurementId: "G-7VGNRGC0G7"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const auth=firebase.auth(); const db=firebase.firestore();
-  const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    /* ===== Твой Firebase Web App конфиг ===== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
+      authDomain: "keen-berm-470615-h6.firebaseapp.com",
+      projectId: "keen-berm-470615-h6",
+      storageBucket: "keen-berm-470615-h6.firebasestorage.app",
+      messagingSenderId: "772648903570",
+      appId: "1:772648903570:web:4aa21c0da258c82d52d74b",
+      measurementId: "G-7VGNRGC0G7"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth(); const db=firebase.firestore();
+    const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
 
-  let _resolveAuth; const authReady=new Promise(r=>_resolveAuth=r);
-  auth.onAuthStateChanged(u=>{ if(u) _resolveAuth(u); });
-  auth.signInAnonymously().catch(err=>{
-    console.error('Auth error:',err);
-    document.getElementById('status').textContent='Auth error: '+(err.message||err.code||err);
-  });
-</script>
+    // ждём анонимный вход для записи
+    let _resolveAuth; const authReady=new Promise(r=>_resolveAuth=r);
+    auth.onAuthStateChanged(u=>{ if(u) _resolveAuth(u); });
+    auth.signInAnonymously().catch(err=>{
+      console.error('Auth error:',err);
+      const s=document.getElementById('status'); if(s) s.textContent='Auth error: '+(err.message||err.code||err);
+    });
+  </script>
 </head>
 <body>
 <header>
-  <h1>קונסטרוקטור סידור</h1>
+  <h1>Конструктор графика — PDF</h1>
   <div class="nav">
-    <a class="btn" href="index.html">↩︎ לדשבורד</a>
+    <a class="btn" href="index.html">↩︎ На дашборд</a>
   </div>
 </header>
 
@@ -77,20 +86,21 @@
   <!-- загрузка -->
   <section class="card">
     <div class="row">
-      <label class="filelabel" for="docxInput">העלה DOCX</label>
-      <input id="docxInput" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+      <label class="filelabel" for="pdfInput">Загрузить PDF</label>
+      <input id="pdfInput" type="file" accept=".pdf,application/pdf" />
       <span class="chip" id="status">…</span>
     </div>
     <div class="note">
-      פורמט: שורה = שם; אחריה 7 ערכים (OFF / P / "9-21" / "9-12, 17-22" / "930-22" / "9-9:30"). מילים כמו
-      <b>חלבי+חם</b>, <b>לובי</b>, <b>סלט</b> וכו' מתעלמים/נשמרים כשדה מחלקה אם יש צורך.
+      Экспортируй расписание из Google Docs в PDF и загрузи сюда.  
+      Формат распознавания: имя на строке + далее 7 значений подряд (OFF / P / «9-21» / «9-12,17-22» / «930-22» / «9-21:30»).  
+      «Шумные» слова типа <b>חלבי</b>, <b>לובי</b>, <b>סלט</b> игнорируются (первое подходящее можно сохранить в поле отдела).
     </div>
   </section>
 
   <!-- неделя -->
   <section class="card">
     <div class="row" style="justify-content:space-between">
-      <strong>שבוע</strong>
+      <strong>Неделя</strong>
       <span class="note" id="weekNote">—</span>
     </div>
     <div class="week" id="weekGrid"></div>
@@ -99,19 +109,19 @@
   <!-- сотрудники -->
   <section class="card">
     <div class="row" style="justify-content:space-between">
-      <strong>עובדים</strong>
+      <strong>Сотрудники</strong>
       <div class="row">
-        <input type="text" id="newName" placeholder="שם" />
+        <input type="text" id="newName" placeholder="Имя" />
         <label class="row"><input type="checkbox" id="newBO" /> Backoffice</label>
-        <button class="btn primary" id="btnAdd">הוסף</button>
+        <button class="btn primary" id="btnAdd">Добавить</button>
       </div>
     </div>
     <table>
       <thead>
         <tr>
-          <th style="width:200px">שם</th>
+          <th style="width:200px">Имя</th>
           <th style="width:110px">Backoffice</th>
-          <th>משמרות לפי ימים (דוגמה: 9-12,17-22)</th>
+          <th>Смены по дням (пример: 9-12,17-22)</th>
           <th style="width:60px"></th>
         </tr>
       </thead>
@@ -122,7 +132,7 @@
 </main>
 
 <footer>
-  <span id="releaseInfo">Release: 2025-09-14 20:25 (Asia/Jerusalem)</span>
+  <span id="releaseInfo">Release: 2025-09-15 00:05 (Asia/Jerusalem)</span>
   <span id="dbg" style="margin-inline-start:10px"></span>
 </footer>
 
@@ -134,42 +144,72 @@ const COL='schedules';
 const DOW_HE=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
 function toISO(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
-function toLocalISO(date){const d=new Date(date.getTime()-date.getTimezoneOffset()*60000);return d.toISOString().slice(0,10);}
 
-/* ===================== ПАРСЕР ===================== */
-// 1) извлечь текст из docx
-async function extractTextFromDocx(file){
-  const ab=await file.arrayBuffer();
-  const { value } = await window.mammoth.extractRawText({ arrayBuffer: ab });
-  return value.replace(/\u000b/g,'\n');
+/* ===================== PDF → ТЕКСТ ===================== */
+async function extractTextFromPdf(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  const yTolerance = 3.0; // допуск по вертикали, чтобы склеивать блоки в одну строку
+  const pagesText = [];
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+
+    const items = content.items.map(it => ({
+      str: it.str,
+      x: it.transform[4],
+      y: it.transform[5]
+    }));
+
+    // сверху вниз, затем слева направо
+    items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
+
+    const lines = [];
+    let cur = [];
+    function flush(){
+      if(!cur.length) return;
+      cur.sort((a,b)=>a.x-b.x);
+      const s = cur.map(t=>t.str).join(' ').replace(/\s+/g,' ').trim();
+      if(s) lines.push(s);
+      cur=[];
+    }
+    for(const it of items){
+      if(!cur.length){ cur.push(it); continue; }
+      const sameLine = Math.abs(it.y - cur[0].y) <= yTolerance;
+      if(sameLine) cur.push(it); else { flush(); cur.push(it); }
+    }
+    flush();
+
+    pagesText.push(lines.join('\n'));
+  }
+  return pagesText.join('\n');
 }
 
-// 2) найти 7 подряд дат: '19-07 18-07 … 13-07' / '19.07' / '19/07'
+/* ===================== ПАРСЕР ===================== */
+// найти 7 подряд дат: dd-mm / dd.mm / dd/mm (год может отсутствовать)
 function findWeekTokens(txt){
   const tokens = Array.from(txt.matchAll(/\b(\d{1,2})[.\-\/](\d{1,2})(?:[.\-\/](\d{2,4}))?\b/g))
-    .map(m=>({d:+m[1],m:+m[2],y:m[3]?+m[3]:null,raw:m[0]}));
+    .map(m=>({d:+m[1],m:+m[2],y:m[3]?+m[3]:null}));
   for(let i=0;i+6<tokens.length;i++){
     const seg=tokens.slice(i,i+7);
     if(seg.every(t=>t.d>=1&&t.d<=31&&t.m>=1&&t.m<=12)) return seg;
   }
   return [];
 }
-function buildWeekISOFromTokens(seg){
-  // если год не указан — берём текущий
+function buildWeekISO(seg){
   let y = seg.find(t=>t.y)?.y || (new Date().getFullYear());
-  if(y<100) y=2000+y;
+  if(y<100) y = 2000 + y;
   return seg.map(t=>toISO(y,t.m,t.d));
 }
 
-// 3) распознавание токена смены
 function isShiftToken(str){
   if(!str) return false;
   const s=str.trim();
   if(/^off$/i.test(s) || /^p$/i.test(s)) return true;
-  // формы: 9-21, 9-21:30, 930-22, 9:00-9:30
-  return /^(\d{1,2}(?::?\d{2})?)-(\d{1,2}(?::?\d{2})?)$/.test(s);
+  return /^(\d{1,2}(?::?\d{2})?)-(\d{1,2}(?::?\d{2})?)$/.test(s); // 9-21 | 930-22 | 9:00-9:30
 }
-// 4) нормализация '930' -> '9:30'
 function normHM(x){
   if(x.includes(':')) return x;
   if(x.length===3) return `${x[0]}:${x.slice(1)}`;
@@ -180,29 +220,24 @@ function parseOneRange(s){
   const m=(s||'').trim().match(/^(\d{1,2}(?::?\d{2})?)-(\d{1,2}(?::?\d{2})?)$/);
   if(!m) return null;
   const a=normHM(m[1]), b=normHM(m[2]);
-  const [h1,mi1='0'] = a.split(':'); const [h2,mi2='0']=b.split(':');
+  const [h1,mi1='0']=a.split(':'); const [h2,mi2='0']=b.split(':');
   const sh=+h1 + (+mi1)/60, eh=+h2 + (+mi2)/60;
   const txt=`${+h1}${(+mi1?':'+String(+mi1).padStart(2,'0'):'')}-${+h2}${(+mi2?':'+String(+mi2).padStart(2,'0'):'')}`;
   return {start:sh,end:eh,text:txt};
 }
-function splitRanges(cell){
-  return (cell||'').split(/[,\s]+/).map(parseOneRange).filter(Boolean);
-}
-// 5) это «имя»? (строка с буквами, не содержит явного интервала)
+function splitRanges(cell){ return (cell||'').split(/[,\s]+/).map(parseOneRange).filter(Boolean); }
 function looksLikeName(s){
   if(!s) return false;
   if(/\d+-\d+/.test(s)) return false;
   return /[\p{L}]{2,}/u.test(s);
 }
-// 6) из «шумной» строки можно вытащить dept?
-const DEPT_WORDS = /חלבי|חם|סלט|לובי|קונד|קצב|ירקות|בר|סנייק|מסע/i;
+const DEPT_WORDS=/חלבי|חם|סלט|לובי|קונד|קצב|ירקות|בר|מסעד/i;
 function maybeDept(s){ const m=(s||'').match(DEPT_WORDS); return m? m[0] : null; }
 
-// 7) главный разбор: имя + 7 валидных токенов дальше по строкам
 function parseFromRaw(raw){
   const weekSeg = findWeekTokens(raw);
-  if(weekSeg.length!==7) throw new Error('לא מצאתי 7 תאריכים רצופים במסמך.');
-  weekISO = buildWeekISOFromTokens(weekSeg);
+  if(weekSeg.length!==7) throw new Error('Не нашёл 7 подряд дат в PDF.');
+  weekISO = buildWeekISO(weekSeg);
 
   const lines = raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
 
@@ -228,7 +263,6 @@ function parseFromRaw(raw){
     }
   }
 
-  // собрать employees
   employees = rows.map(r=>{
     const shifts={};
     for(let d=0; d<7; d++){
@@ -248,7 +282,7 @@ async function loadCloud(){
   try{
     s.textContent='Loading…';
     await authReady;
-    const snap=await db.collection(COL).doc(SITE_ID).get();
+    const snap=await db.collection('schedules').doc(SITE_ID).get();
     if(snap.exists){
       const data=snap.data()||{};
       if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
@@ -272,11 +306,11 @@ function autoSave(){
     try{
       s.textContent='Saving…';
       await authReady;
-      await db.collection(COL).doc(SITE_ID).set({
+      await db.collection('schedules').doc(SITE_ID).set({
         weekISO, employees, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       },{merge:true});
       s.textContent='Saved ✓';
-      renderWeek(); // обновим счётчики
+      renderWeek();
     }catch(err){
       console.error('Save error:',err);
       s.textContent='Save error: '+(err.message||err.code||err);
@@ -292,15 +326,15 @@ const tbody=document.getElementById('empTbody');
 
 function renderWeek(){
   weekGrid.innerHTML='';
-  if(weekISO.length!==7){ weekNote.textContent='שבוע לא הוגדר (העלה DOCX)'; return; }
-  weekNote.textContent='השבוע זוהה';
+  if(weekISO.length!==7){ weekNote.textContent='Неделя не определена (загрузите PDF)'; return; }
+  weekNote.textContent='Неделя распознана';
   for(let i=0;i<7;i++){
     const box=document.createElement('div'); box.className='day';
     const title=document.createElement('h4');
     title.textContent = `${DOW_HE[i]} — ${new Date(weekISO[i]).toLocaleDateString('he-IL')}`;
     let total=0;
     employees.forEach(e=> total += (e.shifts && e.shifts['d'+i] ? e.shifts['d'+i].length : 0));
-    const info=document.createElement('div'); info.className='note'; info.textContent=`מספר אינטרוולים: ${total}`;
+    const info=document.createElement('div'); info.className='note'; info.textContent=`Интервалов: ${total}`;
     box.appendChild(title); box.appendChild(info); weekGrid.appendChild(box);
   }
 }
@@ -326,7 +360,7 @@ function renderEmployees(){
       const cell=document.createElement('input'); cell.type='text';
       const arr=(e.shifts && e.shifts['d'+d])||[];
       cell.value = arr.map(r=>r.text).join(',');
-      cell.placeholder = DOW_HE[d];
+      cell.placeholder = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'][d];
       cell.onchange=()=>{
         const v=cell.value.trim();
         if(!e.shifts) e.shifts={};
@@ -349,17 +383,17 @@ function renderEmployees(){
 function renderAll(){ renderWeek(); renderEmployees(); }
 
 /* ===================== события ===================== */
-document.getElementById('docxInput').onchange = async (e)=>{
+document.getElementById('pdfInput').onchange = async (e)=>{
   const f=e.target.files?.[0]; if(!f) return;
   try{
     status.textContent='Parsing…';
-    const raw=await extractTextFromDocx(f);
+    const raw=await extractTextFromPdf(f);
     parseFromRaw(raw);
     autoSave();
   }catch(err){
     console.error(err);
     status.textContent='Error';
-    alert('DOCX parse error: '+err.message);
+    alert('Ошибка чтения/парсинга PDF: '+(err.message||err));
   }
 };
 document.getElementById('btnAdd').onclick=()=>{
@@ -373,8 +407,10 @@ document.getElementById('btnAdd').onclick=()=>{
 // init
 auth.onAuthStateChanged(u=>{ if(u) loadCloud(); });
 // dbg
-(function(){ const pj=(firebase.app().options && firebase.app().options.projectId)||'—';
-  document.getElementById('dbg').textContent=`projectId=${pj} | siteId=${SITE_ID}`; })();
+(function(){
+  const pj=(firebase.app().options && firebase.app().options.projectId)||'—';
+  document.getElementById('dbg').textContent=`projectId=${pj} | siteId=${SITE_ID}`;
+})();
 </script>
 </body>
 </html>
