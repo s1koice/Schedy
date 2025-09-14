@@ -7,7 +7,7 @@
   <style>
     :root{
       --bg:#f7f9fc; --card:#ffffff; --line:#e8eef4; --text:#1f2937; --muted:#6b7280; --accent:#1a73e8;
-      --chip:#f1f5f9; --warn:#ed6c02; --ok:#2e7d32; --bad:#c62828;
+      --chip:#f1f5f9;
     }
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
@@ -35,6 +35,7 @@
     input[type="text"]{border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:13px;width:100%}
     .grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
     .chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:var(--chip);border:1px solid var(--line);font-size:12px;color:#334155}
+    #debug{white-space:pre-wrap;background:#fafcff;border:1px solid var(--line);border-radius:12px;padding:8px;font-size:12px;color:#4b5563;display:none}
     footer{margin:12px 18px;color:#99a1ad;font-size:11px}
   </style>
 
@@ -50,7 +51,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script>
-    /* ===== Твой Firebase Web App конфиг ===== */
     const firebaseConfig = {
       apiKey: "AIzaSyC6651JMpQhj9FVoqKb_kRndo1r6prZ9kY",
       authDomain: "keen-berm-470615-h6.firebaseapp.com",
@@ -63,13 +63,11 @@
     firebase.initializeApp(firebaseConfig);
     const auth=firebase.auth(); const db=firebase.firestore();
     const SITE_ID=(location.hostname||'').replace(/\./g,'-')||'default';
-
-    // ждём анонимный вход для записи
     let _resolveAuth; const authReady=new Promise(r=>_resolveAuth=r);
     auth.onAuthStateChanged(u=>{ if(u) _resolveAuth(u); });
     auth.signInAnonymously().catch(err=>{
       console.error('Auth error:',err);
-      const s=document.getElementById('status'); if(s) s.textContent='Auth error: '+(err.message||err.code||err);
+      const el=document.getElementById('status'); if(el) el.textContent='Auth error: '+(err.message||err.code||err);
     });
   </script>
 </head>
@@ -89,12 +87,16 @@
       <label class="filelabel" for="pdfInput">Загрузить PDF</label>
       <input id="pdfInput" type="file" accept=".pdf,application/pdf" />
       <span class="chip" id="status">…</span>
+      <label class="row" style="gap:6px">
+        yTolerance: <input id="tol" type="number" step="0.5" value="3.5" style="width:80px">
+      </label>
+      <button class="btn" id="toggleDebug">Debug</button>
     </div>
     <div class="note">
-      Экспортируй расписание из Google Docs в PDF и загрузи сюда.  
-      Формат распознавания: имя на строке + далее 7 значений подряд (OFF / P / «9-21» / «9-12,17-22» / «930-22» / «9-21:30»).  
-      «Шумные» слова типа <b>חלבי</b>, <b>לובי</b>, <b>סלט</b> игнорируются (первое подходящее можно сохранить в поле отдела).
+      Экспортируй расписание из Google Docs в PDF и загрузи. Строки собираются по координате Y (настройка yTolerance).  
+      Поддерживаются OFF, P, «9-21», «9-12,17-22», «930-22», «9-21:30», «9:00-9:30». Лишние слова между днями игнорируются.
     </div>
+    <div id="debug"></div>
   </section>
 
   <!-- неделя -->
@@ -132,63 +134,56 @@
 </main>
 
 <footer>
-  <span id="releaseInfo">Release: 2025-09-15 00:05 (Asia/Jerusalem)</span>
+  <span id="releaseInfo">Release: 2025-09-15 09:40 (Asia/Jerusalem)</span>
   <span id="dbg" style="margin-inline-start:10px"></span>
 </footer>
 
 <script>
-/* ===================== МОДЕЛЬ ===================== */
-let weekISO=[]; // ['YYYY-MM-DD' x7]
-let employees=[]; // [{name,backend,shifts:{d0:[{start,end,text,dept?}],…}}]
-const COL='schedules';
+/* ======= Модель ======= */
+let weekISO=[];           // ['YYYY-MM-DD' x7]
+let employees=[];         // [{name,backend,shifts:{d0:[{start,end,text}],…}}]
 const DOW_HE=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 
-function toISO(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
-
-/* ===================== PDF → ТЕКСТ ===================== */
-async function extractTextFromPdf(file) {
+/* ======= PDF → текст ======= */
+async function extractTextFromPdf(file, yTolerance=3.5) {
+  const statusEl=document.getElementById('status');
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-
-  const yTolerance = 3.0; // допуск по вертикали, чтобы склеивать блоки в одну строку
   const pagesText = [];
-
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-
     const items = content.items.map(it => ({
       str: it.str,
       x: it.transform[4],
       y: it.transform[5]
     }));
-
     // сверху вниз, затем слева направо
     items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
-
     const lines = [];
     let cur = [];
-    function flush(){
+    const flush = ()=>{
       if(!cur.length) return;
       cur.sort((a,b)=>a.x-b.x);
       const s = cur.map(t=>t.str).join(' ').replace(/\s+/g,' ').trim();
       if(s) lines.push(s);
       cur=[];
-    }
+    };
     for(const it of items){
       if(!cur.length){ cur.push(it); continue; }
       const sameLine = Math.abs(it.y - cur[0].y) <= yTolerance;
       if(sameLine) cur.push(it); else { flush(); cur.push(it); }
     }
     flush();
-
     pagesText.push(lines.join('\n'));
+    statusEl.textContent = `Parsing page ${p}/${pdf.numPages}…`;
   }
+  statusEl.textContent = `Parsed ${pdf.numPages} page(s)`;
   return pagesText.join('\n');
 }
 
-/* ===================== ПАРСЕР ===================== */
-// найти 7 подряд дат: dd-mm / dd.mm / dd/mm (год может отсутствовать)
+/* ======= Парсер расписания ======= */
+function toISO(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
 function findWeekTokens(txt){
   const tokens = Array.from(txt.matchAll(/\b(\d{1,2})[.\-\/](\d{1,2})(?:[.\-\/](\d{2,4}))?\b/g))
     .map(m=>({d:+m[1],m:+m[2],y:m[3]?+m[3]:null}));
@@ -203,7 +198,6 @@ function buildWeekISO(seg){
   if(y<100) y = 2000 + y;
   return seg.map(t=>toISO(y,t.m,t.d));
 }
-
 function isShiftToken(str){
   if(!str) return false;
   const s=str.trim();
@@ -276,25 +270,25 @@ function parseFromRaw(raw){
   });
 }
 
-/* ===================== FIRESTORE ===================== */
+/* ======= Firestore ======= */
 async function loadCloud(){
-  const s=document.getElementById('status');
+  const statusEl=document.getElementById('status');
   try{
-    s.textContent='Loading…';
+    statusEl.textContent='Loading…';
     await authReady;
     const snap=await db.collection('schedules').doc(SITE_ID).get();
     if(snap.exists){
       const data=snap.data()||{};
       if(Array.isArray(data.weekISO)) weekISO=data.weekISO;
       if(Array.isArray(data.employees)) employees=data.employees;
-      s.textContent='Saved ✓';
+      statusEl.textContent='Saved ✓';
     }else{
-      s.textContent='No data yet';
+      statusEl.textContent='No data yet';
     }
     renderAll();
   }catch(err){
     console.error('Load error:',err);
-    s.textContent='Load error: '+(err.message||err.code||err);
+    statusEl.textContent='Load error: '+(err.message||err.code||err);
     alert('Firestore read error:\n'+(err.message||err.code||String(err)));
   }
 }
@@ -302,24 +296,24 @@ let saveTimer=null;
 function autoSave(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async ()=>{
-    const s=document.getElementById('status');
+    const statusEl=document.getElementById('status');
     try{
-      s.textContent='Saving…';
+      statusEl.textContent='Saving…';
       await authReady;
       await db.collection('schedules').doc(SITE_ID).set({
         weekISO, employees, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       },{merge:true});
-      s.textContent='Saved ✓';
+      statusEl.textContent='Saved ✓';
       renderWeek();
     }catch(err){
       console.error('Save error:',err);
-      s.textContent='Save error: '+(err.message||err.code||err);
+      statusEl.textContent='Save error: '+(err.message||err.code||err);
       alert('Firestore write error:\n'+(err.message||err.code||String(err)));
     }
   },300);
 }
 
-/* ===================== UI ===================== */
+/* ======= UI ======= */
 const weekGrid=document.getElementById('weekGrid');
 const weekNote=document.getElementById('weekNote');
 const tbody=document.getElementById('empTbody');
@@ -382,17 +376,30 @@ function renderEmployees(){
 
 function renderAll(){ renderWeek(); renderEmployees(); }
 
-/* ===================== события ===================== */
+/* ======= события ======= */
 document.getElementById('pdfInput').onchange = async (e)=>{
+  const statusEl=document.getElementById('status');
+  const dbg=document.getElementById('debug');
+  const tolEl=document.getElementById('tol');
   const f=e.target.files?.[0]; if(!f) return;
   try{
-    status.textContent='Parsing…';
-    const raw=await extractTextFromPdf(f);
+    statusEl.textContent='Parsing…';
+    const tol=parseFloat(tolEl.value)||3.5;
+    const raw=await extractTextFromPdf(f, tol);
+
+    // мини-диагностика
+    const lines=raw.split(/\r?\n/).filter(Boolean);
+    dbg.style.display='block';
+    dbg.textContent = `Строк в сыром тексте: ${lines.length}\nПервые 10:\n`+
+      lines.slice(0,10).join('\n');
+
     parseFromRaw(raw);
     autoSave();
   }catch(err){
     console.error(err);
-    status.textContent='Error';
+    statusEl.textContent='Error';
+    document.getElementById('debug').style.display='block';
+    document.getElementById('debug').textContent = 'Ошибка: '+(err.message||err);
     alert('Ошибка чтения/парсинга PDF: '+(err.message||err));
   }
 };
@@ -402,6 +409,10 @@ document.getElementById('btnAdd').onclick=()=>{
   const shifts={}; for(let i=0;i<7;i++) shifts['d'+i]=[];
   employees.push({name, backend:bo, shifts});
   newName.value=''; newBO.checked=false; autoSave(); renderAll();
+};
+document.getElementById('toggleDebug').onclick=()=>{
+  const d=document.getElementById('debug');
+  d.style.display = d.style.display==='none' ? 'block' : 'none';
 };
 
 // init
